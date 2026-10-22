@@ -12,18 +12,6 @@ Requisitos: Node.js 20.19+ o 22.12+ compatible con Angular 20 y npm.
 4. Ejecutar `npm start`.
 5. Visitar `http://localhost:4200`.
 
-El proyecto usa `AppModule` y componentes de tipo `standalone: false`, con archivos independientes `.component.ts`, `.component.html` y `.component.css`. No se requiere Bootstrap ni una librería visual.
-
-## Accesos preconfigurados
-
-| Rol | Correo | Contraseña | Código local de recuperación |
-| --- | --- | --- | --- |
-| Administrador único | admin@rutacar.test | Admin2026! | RUTA-ADMIN-2026 |
-| Asesor | asesor@rutacar.test | Asesor2026! | RUTA-ASESOR-2026 |
-| Técnico | tecnico@rutacar.test | Tecnico2026! | RUTA-TECNICO-2026 |
-| Cliente | cliente@rutacar.test | Cliente2026! | RUTA-CLIENTE-2026 |
-
-Los cuatro accesos están precargados y sus contraseñas se verifican con PBKDF2-SHA256 en el navegador. No es necesario registrarlos previamente. La única cuenta de administrador se entrega preconfigurada, no existe una pantalla para crearla, no se puede crear otro administrador desde los formularios y no se puede desactivar la cuenta administrativa. El administrador puede crear múltiples asesores y técnicos, y los clientes pueden registrarse libremente.
 
 ## Datos iniciales de demostración
 
