@@ -1,0 +1,57 @@
+<div class="page-head">
+    <div>
+        <div class="eyebrow">OPERACIÓN / PAGOS</div>
+        <h1>Procesamiento de pagos</h1>
+        <p>Seguimiento a pre-reservas pendientes de aprobación bancaria.</p>
+    </div>
+    <div class="head-actions"><a class="btn btn-outline" routerLink="/reservas">Ver pre-reservas</a></div>
+</div>
+<div class="payment-warning">
+    <div class="payment-head"><span class="payment-symbol">!</span>
+        <div>
+            <div class="eyebrow"></div>
+            <h2></h2>
+            <p></p>
+        </div>
+    </div>
+    <div class="payment-steps">
+        <div><span>01</span><strong>Iniciar pago</strong><small>La API recibe la solicitud de cobro.</small></div>
+        <div><span>02</span><strong>Verificar aprobación</strong><small>El backend comprueba la respuesta del
+                banco.</small></div>
+        <div><span>03</span><strong>Confirmar o revertir</strong><small>COMMIT al aprobar; ROLLBACK al fallar.</small>
+        </div>
+    </div>
+</div>
+<section class="panel">
+    <div class="panel-head">
+        <h2>Pre-reservas a la espera de pago</h2><span class="small-note">{{pendientes.length}} pendientes
+            locales</span>
+    </div>
+    <div class="table-wrap" *ngIf="pendientes.length">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Vehículo</th>
+                    <th>Cliente</th>
+                    <th>Fecha de inicio</th>
+                    <th>Subtotal estimado</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let r of pendientes">
+                    <td><strong>{{datos.nombreVehiculo(r.vehiculoId)}}</strong></td>
+                    <td>{{datos.nombreCliente(r.clienteId)}}</td>
+                    <td>{{r.fechaInicio|date:'dd/MM/yyyy HH:mm'}}</td>
+                    <td>{{r.costoEstimado|currency:'COP':'symbol-narrow':'1.0-0'}}</td>
+                    <td><span class="badge-status pending">Sin pago aprobado</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="empty-state" *ngIf="!pendientes.length"><span class="empty-symbol">P</span>
+        <h3>Sin pre-reservas pendientes</h3>
+        <p>Las pre-reservas de trabajo aparecerán aquí. No se generan registros de pagos ficticios.</p><a
+            routerLink="/reservas" class="btn btn-primary">Ir a reservas</a>
+    </div>
+</section>  

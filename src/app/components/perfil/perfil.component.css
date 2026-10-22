@@ -1,0 +1,1 @@
+.profile-line{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:15px 0;font-size:13px}.profile-line span{color:#7b8084}.profile-line strong{text-align:right}.panel .field{margin-bottom:15px}.recovery-code{background:#f1f1f1;padding:15px;text-align:center;font-size:17px;letter-spacing:.1em;font-weight:800;overflow-wrap:anywhere}

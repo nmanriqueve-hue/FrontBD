@@ -1,0 +1,20 @@
+<div class="site-shell" [class.is-workspace]="auth.sesion">
+  <div class="service-strip"><div class="site-container service-strip-inner"><span>Alquiler de vehículos en Colombia</span><span>Tarifas en pesos colombianos · Proyecto académico</span></div></div>
+  <header class="site-header">
+    <div class="site-container header-inner">
+      <a class="brand" routerLink="/" (click)="cerrarMenu()" aria-label="RutaCar, ir al inicio"><span class="brand-name">RUTACAR<span class="brand-period">.</span></span></a>
+      <nav class="primary-nav" aria-label="Navegación principal"><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}">Inicio</a><a routerLink="/catalogo" routerLinkActive="active">Encuentra tu vehículo</a><a routerLink="/" fragment="como-funciona">El proceso de alquiler</a><a routerLink="/panel" routerLinkActive="active" *ngIf="auth.sesion">Mi área</a></nav>
+      <div class="header-actions" *ngIf="!auth.sesion"><a class="login-link" routerLink="/acceso">Iniciar sesión</a><a class="header-register" routerLink="/registro">Crear cuenta <span aria-hidden="true">›</span></a></div>
+      <div class="header-actions" *ngIf="auth.sesion"><a routerLink="/perfil" class="signed-user"><span>{{auth.sesion.nombre}}<small>{{auth.sesion.rol}}</small></span></a><button class="logout-top" type="button" (click)="salir()">Salir</button></div>
+      <button class="menu-toggle" type="button" [attr.aria-expanded]="menuAbierto" (click)="menuAbierto=!menuAbierto" [attr.aria-label]="menuAbierto?'Cerrar menú':'Abrir menú'"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+  <nav class="mobile-nav" *ngIf="menuAbierto" aria-label="Navegación móvil"><a routerLink="/" (click)="cerrarMenu()">Inicio</a><a routerLink="/catalogo" (click)="cerrarMenu()">Buscar vehículos</a><a routerLink="/panel" *ngIf="auth.sesion" (click)="cerrarMenu()">Mi área</a><a routerLink="/acceso" *ngIf="!auth.sesion" (click)="cerrarMenu()">Iniciar sesión</a><a routerLink="/registro" *ngIf="!auth.sesion" (click)="cerrarMenu()">Crear cuenta</a><button type="button" *ngIf="auth.sesion" (click)="salir()">Cerrar sesión</button></nav>
+  <div class="workspace-layout" *ngIf="auth.sesion; else publicContent">
+    <aside class="workspace-side" aria-label="Menú de gestión"><div class="side-context"><span class="side-caption">TU ESPACIO</span><strong>{{auth.sesion.rol === 'cliente' ? 'Mi cuenta' : 'Área de gestión'}}</strong><span class="side-subtitle">{{auth.sesion.nombre}}</span></div><nav class="side-links"><a *ngFor="let e of visibles" [routerLink]="e.ruta" routerLinkActive="current" [routerLinkActiveOptions]="{exact:true}"><span>{{e.titulo}}</span></a></nav><div class="side-bottom"><span>RutaCar · Bases de Datos 2</span><small>Entorno académico de demostración</small></div></aside>
+<main class="workspace-main">
+  <router-outlet></router-outlet>
+</main>  </div>
+  <ng-template #publicContent><main class="public-main"><router-outlet></router-outlet></main></ng-template>
+  <footer class="site-footer"><div class="site-container footer-main"><div class="footer-intro"><a routerLink="/" class="footer-logo">RUTACAR<span>.</span></a><p>Alquiler y gestión de vehículos en Colombia.<br>Aplicación académica de Bases de Datos 2.</p></div><div class="footer-column"><h3>Explora</h3><a routerLink="/">Inicio</a><a routerLink="/catalogo">Vehículos</a><a routerLink="/acceso">Tu cuenta</a></div><div class="footer-column"><h3>Proyecto desarrollado por</h3><span>Felipe Acosta</span><span>Santiago Muñoz</span><span>Nataly Manrique</span></div></div><div class="site-container footer-base"><span>Universidad El Bosque · Ingeniería de Sistemas</span><span>Bogotá, Colombia · 2026</span></div></footer>
+</div>
