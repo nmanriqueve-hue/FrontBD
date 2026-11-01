@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { Categoria, Cliente, Colecciones, Empleado, Inspeccion, Reserva, Sede, Seguro, Tabla, Vehiculo } from './models';
 
-const CLAVE = 'bd2-rutacar-demo-v3';
+const CLAVE = 'rutacar-datos-locales-v4';
 const DEMO_DATE = '2026-10-16T12:00:00.000Z';
 const VACIO: Colecciones = {
   categorias: [
@@ -18,18 +18,13 @@ const VACIO: Colecciones = {
     { id: 'seguro-robo-demo', creado: DEMO_DATE, nombre: 'Protección contra robo', descripcion: 'Opción de prueba; cobertura sujeta a definición del backend', costoDiario: 22000, estado: 'activo' },
     { id: 'seguro-terceros-demo', creado: DEMO_DATE, nombre: 'Protección a terceros', descripcion: 'Opción de prueba; cobertura sujeta a definición del backend', costoDiario: 18000, estado: 'activo' }
   ],
-  clientes: [
-    { id: 'cliente-demo', creado: DEMO_DATE, documento: 'DEMO-1001', primerNombre: 'Cliente', segundoNombre: '', primerApellido: 'Prueba', segundoApellido: '', correo: 'cliente@rutacar.test', telefono: '3000000000', estado: 'activo', licencia: { numero: 'LIC-DEMO-1001', categoria: 'B1', expedicion: '2024-01-15', vencimiento: '2032-01-15' } }
-  ],
+  clientes: [],
   vehiculos: [
     { id: 'veh-sedan-demo', creado: DEMO_DATE, placa: 'DEMO01', marca: 'Sedán de prueba', modeloAnio: 2025, kilometraje: 14000, color: 'Plata', categoriaId: 'cat-sedan-demo', sedeId: 'sede-bogota-demo', estado: 'disponible' },
     { id: 'veh-suv-demo', creado: DEMO_DATE, placa: 'DEMO02', marca: 'SUV de prueba', modeloAnio: 2025, kilometraje: 9500, color: 'Negro', categoriaId: 'cat-suv-demo', sedeId: 'sede-bogota-demo', estado: 'disponible' },
     { id: 'veh-compacto-demo', creado: DEMO_DATE, placa: 'DEMO03', marca: 'Compacto de prueba', modeloAnio: 2024, kilometraje: 21500, color: 'Blanco', categoriaId: 'cat-compacto-demo', sedeId: 'sede-medellin-demo', estado: 'disponible' }
   ],
-  empleados: [
-    { id: 'empleado-asesor-demo', creado: DEMO_DATE, documento: 'EMP-DEMO-01', primerNombre: 'Asesor', primerApellido: 'Prueba', fechaContratacion: '2026-01-20', sedeId: 'sede-bogota-demo', rol: 'asesor', estado: 'activo', mostradorAsignado: 'Punto de atención A' },
-    { id: 'empleado-tecnico-demo', creado: DEMO_DATE, documento: 'EMP-DEMO-02', primerNombre: 'Técnico', primerApellido: 'Prueba', fechaContratacion: '2026-01-20', sedeId: 'sede-bogota-demo', rol: 'tecnico', estado: 'activo', especialidad: 'Inspección de vehículos' }
-  ],
+  empleados: [],
   reservas: [], inspecciones: []
 };
 

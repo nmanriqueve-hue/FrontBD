@@ -43,7 +43,6 @@ export class ClientesComponent {
     if (this.datos.clientes.some(c => c.id !== this.edicion && c.correo.toLowerCase() === v.correo.trim().toLowerCase())) { this.error = 'El correo electrónico ya está registrado.'; return; }
     if (this.datos.clientes.some(c => c.id !== this.edicion && c.licencia.numero.toLowerCase() === v.numeroLicencia.trim().toLowerCase())) { this.error = 'Este número de licencia ya pertenece a otro cliente.'; return; }
     const anterior = this.datos.clientes.find(c => c.id === this.edicion);
-    if (anterior && anterior.correo !== v.correo.trim().toLowerCase() && this.auth.cuentas.some(c => c.clienteId === anterior.id)) { this.error = 'El correo está vinculado a una cuenta de acceso. Su modificación requiere sincronización con el servicio de autenticación.'; return; }
     const registro: Cliente = {
       id: this.edicion || this.datos.nuevoId(), creado: anterior?.creado ?? this.datos.fechaActual(), documento: v.documento.trim(),
       primerNombre: v.primerNombre.trim(), segundoNombre: v.segundoNombre?.trim() ?? '', primerApellido: v.primerApellido.trim(), segundoApellido: v.segundoApellido?.trim() ?? '',
