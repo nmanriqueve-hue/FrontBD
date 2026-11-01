@@ -2,9 +2,11 @@ import { LOCALE_ID, NgModule } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
 import localeEsCo from '@angular/common/locales/es-CO';
 import { BrowserModule } from '@angular/platform-browser';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
+import { authInterceptor } from './core/auth.interceptor';
 import { InicioComponent } from './components/inicio/inicio.component';
 import { CatalogoComponent } from './components/catalogo/catalogo.component';
 import { ClientesComponent } from './components/clientes/clientes.component';
@@ -30,7 +32,7 @@ registerLocaleData(localeEsCo);
     ReportesComponent, AccesoComponent, RegistroComponent, RecuperacionComponent, CuentasComponent,
     PerfilComponent, SinPermisoComponent],
   imports: [BrowserModule, FormsModule, ReactiveFormsModule, AppRoutingModule],
-  providers: [{ provide: LOCALE_ID, useValue: 'es-CO' }],
+  providers: [{ provide: LOCALE_ID, useValue: 'es-CO' }, provideHttpClient(withInterceptors([authInterceptor]))],
   bootstrap: [AppComponent]
 })
 export class AppModule {}

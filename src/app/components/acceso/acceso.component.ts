@@ -19,7 +19,8 @@ export class AccesoComponent {
     if (this.form.invalid || this.cargando) { return; }
     this.cargando = true;
     try {
-      await this.auth.iniciarSesion(this.form.value.correo, this.form.value.clave);
+      const sesion = await this.auth.iniciarSesion(this.form.value.correo, this.form.value.clave);
+      if (sesion.debeCambiarClave) { await this.router.navigateByUrl('/perfil'); return; }
       const volver = this.route.snapshot.queryParamMap.get('volver');
       await this.router.navigateByUrl(volver?.startsWith('/') && !volver.startsWith('//') ? volver : '/panel');
     } catch (e) { this.error = e instanceof Error ? e.message : 'No se pudo iniciar la sesión.'; }
