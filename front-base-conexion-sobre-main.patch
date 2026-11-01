@@ -1,0 +1,1161 @@
+diff --git a/src/app/app.module.ts b/src/app/app.module.ts
+index 45808c3..eb902f2 100644
+--- a/src/app/app.module.ts
++++ b/src/app/app.module.ts
+@@ -2,9 +2,11 @@ import { LOCALE_ID, NgModule } from '@angular/core';
+ import { registerLocaleData } from '@angular/common';
+ import localeEsCo from '@angular/common/locales/es-CO';
+ import { BrowserModule } from '@angular/platform-browser';
++import { provideHttpClient, withInterceptors } from '@angular/common/http';
+ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+ import { AppRoutingModule } from './app-routing.module';
+ import { AppComponent } from './app.component';
++import { authInterceptor } from './core/auth.interceptor';
+ import { InicioComponent } from './components/inicio/inicio.component';
+ import { CatalogoComponent } from './components/catalogo/catalogo.component';
+ import { ClientesComponent } from './components/clientes/clientes.component';
+@@ -30,7 +32,7 @@ registerLocaleData(localeEsCo);
+     ReportesComponent, AccesoComponent, RegistroComponent, RecuperacionComponent, CuentasComponent,
+     PerfilComponent, SinPermisoComponent],
+   imports: [BrowserModule, FormsModule, ReactiveFormsModule, AppRoutingModule],
+-  providers: [{ provide: LOCALE_ID, useValue: 'es-CO' }],
++  providers: [{ provide: LOCALE_ID, useValue: 'es-CO' }, provideHttpClient(withInterceptors([authInterceptor]))],
+   bootstrap: [AppComponent]
+ })
+ export class AppModule {}
+diff --git a/src/app/components/acceso/acceso.component.html b/src/app/components/acceso/acceso.component.html
+index 0602f70..2bb2d40 100644
+--- a/src/app/components/acceso/acceso.component.html
++++ b/src/app/components/acceso/acceso.component.html
+@@ -1,2 +1,2 @@
+ <section class="access-screen"><div class="access-poster" role="img" aria-label="Fotografía de un vehículo"><span>Alquiler de vehículos en Colombia</span></div>
+-<div class="access-form-wrap"><div class="access-form-head"><span>Acceso a RutaCar</span><h1>Iniciar sesión</h1><p>Accede con tu correo electrónico y contraseña.</p></div><form [formGroup]="form" (ngSubmit)="ingresar()" novalidate><div class="field"><label for="login-email">Correo electrónico</label><input id="login-email" type="email" autocomplete="username" formControlName="correo" placeholder="Correo electrónico"><span class="error" *ngIf="validar(form,'correo')">{{validar(form,'correo')}}</span></div><div class="field"><label for="login-clave">Contraseña</label><div class="input-action"><input id="login-clave" [type]="visible?'text':'password'" autocomplete="current-password" formControlName="clave"><button type="button" (click)="visible=!visible" [attr.aria-label]="visible?'Ocultar contraseña':'Mostrar contraseña'">{{visible?'OCULTAR':'MOSTRAR'}}</button></div><span class="error" *ngIf="validar(form,'clave')">{{validar(form,'clave')}}</span></div><a class="forgot-link" routerLink="/recuperar">¿Olvidaste tu contraseña?</a><div class="form-error" role="alert" *ngIf="error">{{error}}</div><button class="access-submit" type="submit" [disabled]="cargando">{{cargando?'VALIDANDO...':'Iniciar sesión'}}<span aria-hidden="true">→</span></button></form><div class="access-register"><span>¿Todavía no tienes una cuenta?</span><a routerLink="/registro">Regístrate <span aria-hidden="true">↗</span></a></div><p class="access-disclaimer">Acceso demostrativo para pruebas académicas. No introduzcas datos personales reales ni claves de otros servicios.</p></div></section>
++<div class="access-form-wrap"><div class="access-form-head"><span>Acceso a RutaCar</span><h1>Iniciar sesión</h1><p>Accede con tu correo electrónico y contraseña.</p></div><form [formGroup]="form" (ngSubmit)="ingresar()" novalidate><div class="field"><label for="login-email">Correo electrónico</label><input id="login-email" type="email" autocomplete="username" formControlName="correo" placeholder="Correo electrónico"><span class="error" *ngIf="validar(form,'correo')">{{validar(form,'correo')}}</span></div><div class="field"><label for="login-clave">Contraseña</label><div class="input-action"><input id="login-clave" [type]="visible?'text':'password'" autocomplete="current-password" formControlName="clave"><button type="button" (click)="visible=!visible" [attr.aria-label]="visible?'Ocultar contraseña':'Mostrar contraseña'">{{visible?'OCULTAR':'MOSTRAR'}}</button></div><span class="error" *ngIf="validar(form,'clave')">{{validar(form,'clave')}}</span></div><a class="forgot-link" routerLink="/recuperar">¿Olvidaste tu contraseña?</a><div class="form-error" role="alert" *ngIf="error">{{error}}</div><button class="access-submit" type="submit" [disabled]="cargando">{{cargando?'VALIDANDO...':'Iniciar sesión'}}<span aria-hidden="true">→</span></button></form><div class="access-register"><span>¿Todavía no tienes una cuenta?</span><a routerLink="/registro">Regístrate <span aria-hidden="true">↗</span></a></div><p class="access-disclaimer">Proyecto académico de Bases de Datos 2. No introduzcas claves de otros servicios.</p></div></section>
+diff --git a/src/app/components/acceso/acceso.component.ts b/src/app/components/acceso/acceso.component.ts
+index cb8b244..29e30bc 100644
+--- a/src/app/components/acceso/acceso.component.ts
++++ b/src/app/components/acceso/acceso.component.ts
+@@ -19,7 +19,8 @@ export class AccesoComponent {
+     if (this.form.invalid || this.cargando) { return; }
+     this.cargando = true;
+     try {
+-      await this.auth.iniciarSesion(this.form.value.correo, this.form.value.clave);
++      const sesion = await this.auth.iniciarSesion(this.form.value.correo, this.form.value.clave);
++      if (sesion.debeCambiarClave) { await this.router.navigateByUrl('/perfil'); return; }
+       const volver = this.route.snapshot.queryParamMap.get('volver');
+       await this.router.navigateByUrl(volver?.startsWith('/') && !volver.startsWith('//') ? volver : '/panel');
+     } catch (e) { this.error = e instanceof Error ? e.message : 'No se pudo iniciar la sesión.'; }
+diff --git a/src/app/components/clientes/clientes.component.ts b/src/app/components/clientes/clientes.component.ts
+index 6bcff68..1e62917 100644
+--- a/src/app/components/clientes/clientes.component.ts
++++ b/src/app/components/clientes/clientes.component.ts
+@@ -43,7 +43,6 @@ export class ClientesComponent {
+     if (this.datos.clientes.some(c => c.id !== this.edicion && c.correo.toLowerCase() === v.correo.trim().toLowerCase())) { this.error = 'El correo electrónico ya está registrado.'; return; }
+     if (this.datos.clientes.some(c => c.id !== this.edicion && c.licencia.numero.toLowerCase() === v.numeroLicencia.trim().toLowerCase())) { this.error = 'Este número de licencia ya pertenece a otro cliente.'; return; }
+     const anterior = this.datos.clientes.find(c => c.id === this.edicion);
+-    if (anterior && anterior.correo !== v.correo.trim().toLowerCase() && this.auth.cuentas.some(c => c.clienteId === anterior.id)) { this.error = 'El correo está vinculado a una cuenta de acceso. Su modificación requiere sincronización con el servicio de autenticación.'; return; }
+     const registro: Cliente = {
+       id: this.edicion || this.datos.nuevoId(), creado: anterior?.creado ?? this.datos.fechaActual(), documento: v.documento.trim(),
+       primerNombre: v.primerNombre.trim(), segundoNombre: v.segundoNombre?.trim() ?? '', primerApellido: v.primerApellido.trim(), segundoApellido: v.segundoApellido?.trim() ?? '',
+diff --git a/src/app/components/cuentas/cuentas.component.html b/src/app/components/cuentas/cuentas.component.html
+index dc59717..6f33797 100644
+--- a/src/app/components/cuentas/cuentas.component.html
++++ b/src/app/components/cuentas/cuentas.component.html
+@@ -1,5 +1,5 @@
+-<div class="page-head"><div><div class="eyebrow">ADMINISTRACIÓN / SEGURIDAD</div><h1>Cuentas y roles</h1><p>Administra accesos locales del personal. El rol se toma de la especialización registrada en empleados.</p></div><button type="button" class="btn btn-primary" (click)="abierto=!abierto;codigo='';error=''" [disabled]="!disponibles.length">{{abierto?'Cerrar formulario':'Crear acceso de empleado'}}</button></div>
+-<div class="form-success" *ngIf="exito" role="status">{{exito}}</div><div class="panel panel-pad" *ngIf="codigo"><strong>Código de recuperación del nuevo empleado:</strong><div class="recovery-code">{{codigo}}</div><p class="small-note">Cópialo antes de salir. No se enviará por correo electrónico.</p><button class="btn btn-outline" (click)="codigo=''">Entendido</button></div>
+-<div class="panel panel-pad" *ngIf="abierto"><h2>Crear acceso de personal</h2><p class="small-note">Primero registra el empleado en su módulo. No puedes crear cuentas para empleados inactivos.</p><form [formGroup]="form" (ngSubmit)="crear()"><div class="form-grid"><div class="field"><label for="cuenta-empleado">Empleado *</label><select id="cuenta-empleado" formControlName="empleadoId"><option value="">Seleccionar empleado</option><option *ngFor="let e of disponibles" [value]="e.id">{{e.primerNombre}} {{e.primerApellido}} · {{e.rol}}</option></select><span class="error" *ngIf="validar(form,'empleadoId')">{{validar(form,'empleadoId')}}</span></div><div class="field"><label for="cuenta-email">Correo de acceso *</label><input id="cuenta-email" type="email" formControlName="correo"><span class="error" *ngIf="validar(form,'correo')">{{validar(form,'correo')}}</span></div><div class="field"><label for="cuenta-clave">Contraseña temporal *</label><input id="cuenta-clave" type="password" formControlName="clave"><small>10 caracteres, mayúscula, minúscula y número.</small></div></div><div class="form-error" *ngIf="error" role="alert">{{error}}</div><div class="form-actions"><button class="btn btn-primary" [disabled]="cargando">Crear acceso</button></div></form></div>
+-<div class="panel"><div class="panel-head"><h2>Cuentas registradas</h2><span class="small-note">{{auth.cuentas.length}} cuentas</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr *ngFor="let c of auth.cuentas"><td><strong>{{c.nombre}}</strong></td><td>{{c.correo}}</td><td>{{c.empleadoId ? rolEmpleado(c.empleadoId) : c.rol}}</td><td><span class="badge-status" [class.active]="c.estado==='activo'">{{c.estado}}</span></td><td><button class="btn btn-sm btn-outline" [disabled]="c.id===auth.sesion?.id" (click)="cambiarEstado(c.id)">{{c.estado==='activo'?'Desactivar':'Reactivar'}}</button></td></tr></tbody></table></div></div>
+-<p class="small-note" *ngIf="!disponibles.length">Para crear más accesos debes registrar empleados activos que todavía no tengan cuenta.</p>
++<div class="page-head"><div><div class="eyebrow">ADMINISTRACIÓN / SEGURIDAD</div><h1>Cuentas y contraseñas</h1><p>Cada empleado y cada cliente inicia sesión con su correo. Desde aquí se genera una contraseña temporal cuando alguien pierde el acceso.</p></div></div>
++<div class="form-error" *ngIf="error" role="alert">{{error}}</div>
++<div class="panel panel-pad" *ngIf="temporal"><strong>Contraseña temporal de {{temporal.nombre}}:</strong><div class="recovery-code">{{temporal.clave}}</div><p class="small-note">Entrégala por un canal seguro y cópiala ahora: no se vuelve a mostrar. Al iniciar sesión se le pedirá crear una nueva.</p><button class="btn btn-outline" type="button" (click)="temporal=null">Entendido</button></div>
++<div class="panel"><div class="panel-head"><h2>Empleados</h2><span class="small-note">{{empleados.length}} cuentas</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Empleado</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr *ngFor="let e of empleados"><td><strong>{{e.primerNombre}} {{e.primerApellido}}</strong></td><td>{{e.correo}}</td><td>{{e.tipo}}</td><td><span class="badge-status" [class.active]="e.estado==='ACTIVO'">{{e.estado}}</span></td><td><button class="btn btn-sm btn-outline" type="button" [disabled]="esPropia('EMPLEADO', e.idEmpleado)" (click)="restablecer('EMPLEADO', e.idEmpleado, e.primerNombre+' '+e.primerApellido)">Restablecer contraseña</button></td></tr><tr *ngIf="!empleados.length && !cargando"><td colspan="5">No hay empleados registrados.</td></tr></tbody></table></div></div>
++<div class="panel"><div class="panel-head"><h2>Clientes</h2><span class="small-note">{{clientes.length}} cuentas</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Cliente</th><th>Correo</th><th>Documento</th><th>Estado</th><th>Acción</th></tr></thead><tbody><tr *ngFor="let c of clientes"><td><strong>{{c.primerNombre}} {{c.primerApellido}}</strong></td><td>{{c.correo}}</td><td>{{c.numeroDocumento}}</td><td><span class="badge-status" [class.active]="c.estado==='ACTIVO'">{{c.estado}}</span></td><td><button class="btn btn-sm btn-outline" type="button" (click)="restablecer('CLIENTE', c.idCliente, c.primerNombre+' '+c.primerApellido)">Restablecer contraseña</button></td></tr><tr *ngIf="!clientes.length && !cargando"><td colspan="5">No hay clientes registrados.</td></tr></tbody></table></div></div>
+diff --git a/src/app/components/cuentas/cuentas.component.ts b/src/app/components/cuentas/cuentas.component.ts
+index f7faa20..65a00b5 100644
+--- a/src/app/components/cuentas/cuentas.component.ts
++++ b/src/app/components/cuentas/cuentas.component.ts
+@@ -1,37 +1,31 @@
+-import { Component } from '@angular/core';
+-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
++import { Component, OnInit } from '@angular/core';
++import { firstValueFrom } from 'rxjs';
++import { ApiService, mensajeError } from '../../core/api.service';
++import { ClienteResponse, EmpleadoResponse, TipoCuenta } from '../../core/api-models';
+ import { AuthService } from '../../core/auth.service';
+-import { DatosService } from '../../core/datos.service';
+-import { validarControl } from '../../core/validadores';
+ 
+ @Component({ selector: 'app-cuentas', standalone: false, templateUrl: './cuentas.component.html', styleUrl: './cuentas.component.css' })
+-export class CuentasComponent {
+-  form: FormGroup;
+-  abierto = false;
++export class CuentasComponent implements OnInit {
++  empleados: EmpleadoResponse[] = [];
++  clientes: ClienteResponse[] = [];
+   cargando = false;
+   error = '';
+-  exito = '';
+-  codigo = '';
+-  readonly validar = validarControl;
+-  constructor(public auth: AuthService, public datos: DatosService, fb: FormBuilder) {
+-    this.form = fb.group({ empleadoId: ['', Validators.required], correo: ['', [Validators.required, Validators.email]], clave: ['', [Validators.required, Validators.minLength(10)]] });
+-  }
+-  rolEmpleado(id: string): string { return this.datos.empleados.find(e => e.id === id)?.rol || 'sin empleado'; }
+-  get disponibles() { return this.datos.empleados.filter(e => e.estado === 'activo' && !this.auth.cuentas.some(c => c.empleadoId === e.id)); }
+-  async crear(): Promise<void> {
+-    this.form.markAllAsTouched(); this.error = ''; this.exito = '';
+-    if (this.form.invalid || this.cargando) { return; }
+-    this.cargando = true;
++  temporal: { nombre: string; clave: string } | null = null;
++  constructor(public auth: AuthService, private api: ApiService) {}
++  ngOnInit(): void { void this.cargar(); }
++  async cargar(): Promise<void> {
++    this.cargando = true; this.error = '';
+     try {
+-      const v = this.form.getRawValue();
+-      this.codigo = await this.auth.crearAccesoEmpleado(v.empleadoId, v.correo, v.clave);
+-      this.form.reset(); this.abierto = false; this.exito = 'Acceso de empleado creado localmente.';
+-    } catch (e) { this.error = e instanceof Error ? e.message : 'No se pudo crear el acceso.'; }
++      const [empleados, clientes] = await Promise.all([firstValueFrom(this.api.empleados()), firstValueFrom(this.api.clientes({ size: 100 }))]);
++      this.empleados = empleados; this.clientes = clientes.content;
++    } catch (e) { this.error = mensajeError(e, 'No se pudieron cargar las cuentas.'); }
+     finally { this.cargando = false; }
+   }
+-  cambiarEstado(id: string): void {
+-    if (!confirm('¿Cambiar el estado de acceso de esta cuenta?')) { return; }
+-    try { this.auth.cambiarEstado(id); this.exito = 'Estado actualizado en este navegador.'; this.error = ''; }
+-    catch (e) { this.error = e instanceof Error ? e.message : 'No se pudo actualizar.'; }
++  esPropia(tipo: TipoCuenta, id: number): boolean { return this.auth.sesion?.tipo === tipo && this.auth.sesion.id === id; }
++  async restablecer(tipo: TipoCuenta, id: number, nombre: string): Promise<void> {
++    if (!confirm(`¿Generar una contraseña temporal para ${nombre}? La contraseña actual dejará de funcionar.`)) { return; }
++    this.error = ''; this.temporal = null;
++    try { this.temporal = { nombre, clave: await this.auth.restablecerClave(tipo, id) }; }
++    catch (e) { this.error = mensajeError(e, 'No se pudo restablecer la contraseña.'); }
+   }
+ }
+diff --git a/src/app/components/perfil/perfil.component.html b/src/app/components/perfil/perfil.component.html
+index a151e19..7c0c20d 100644
+--- a/src/app/components/perfil/perfil.component.html
++++ b/src/app/components/perfil/perfil.component.html
+@@ -1,3 +1,3 @@
+ <div class="page-head"><div><div class="eyebrow">MI CUENTA</div><h1>Información de perfil</h1><p>Datos del usuario y administración de su acceso.</p></div></div>
+-<div class="two-column"><section class="panel panel-pad"><h2>Datos de cuenta</h2><div class="profile-line"><span>Nombre</span><strong>{{auth.sesion?.nombre}}</strong></div><div class="profile-line"><span>Correo</span><strong>{{auth.sesion?.correo}}</strong></div><div class="profile-line"><span>Perfil</span><strong>{{auth.sesion?.rol}}</strong></div><ng-container *ngIf="cliente"><div class="profile-line"><span>Documento</span><strong>{{cliente?.documento}}</strong></div><div class="profile-line"><span>Licencia</span><strong>{{cliente?.licencia?.numero}}</strong></div><div class="profile-line"><span>Vencimiento</span><strong>{{cliente?.licencia?.vencimiento}}</strong></div></ng-container><p class="small-note">Para modificar datos personales o de licencia, solicita la actualización a un asesor o administrador.</p></section>
+-<section class="panel panel-pad"><h2>Cambiar contraseña</h2><form [formGroup]="form" (ngSubmit)="cambiar()"><div class="field"><label for="p-actual">Contraseña actual</label><input id="p-actual" type="password" formControlName="actual"></div><div class="field"><label for="p-nueva">Nueva contraseña</label><input id="p-nueva" type="password" formControlName="nueva"><small>Mínimo 10 caracteres con mayúscula, minúscula y número.</small></div><div class="field"><label for="p-confirm">Confirmar nueva contraseña</label><input id="p-confirm" type="password" formControlName="confirmar"></div><div class="form-error" *ngIf="error" role="alert">{{error}}</div><div class="form-success" *ngIf="exito" role="status">{{exito}}</div><div *ngIf="codigo"><p>Tu código de recuperación cambió. Guárdalo:</p><div class="recovery-code">{{codigo}}</div></div><div class="form-actions"><button class="btn btn-primary" type="submit" [disabled]="cargando">Actualizar contraseña</button></div></form></section></div>
++<div class="two-column"><section class="panel panel-pad"><h2>Datos de cuenta</h2><div class="profile-line"><span>Nombre</span><strong>{{auth.sesion?.nombre}}</strong></div><div class="profile-line"><span>Correo</span><strong>{{auth.sesion?.correo}}</strong></div><div class="profile-line"><span>Perfil</span><strong>{{auth.sesion?.rol}}</strong></div><ng-container *ngIf="cliente"><div class="profile-line"><span>Documento</span><strong>{{cliente.numeroDocumento}}</strong></div><div class="profile-line" *ngIf="cliente.telefono"><span>Teléfono</span><strong>{{cliente.telefono}}</strong></div></ng-container><ng-container *ngIf="licencia"><div class="profile-line"><span>Licencia</span><strong>{{licencia.numeroLicencia}} · {{licencia.categoriaLicencia}}</strong></div><div class="profile-line"><span>Vencimiento</span><strong>{{licencia.fechaVencimiento}}</strong></div></ng-container><p class="small-note">Para modificar datos personales o de licencia, solicita la actualización a un asesor o administrador.</p></section>
++<section class="panel panel-pad"><h2>Cambiar contraseña</h2><div class="form-error" *ngIf="auth.sesion?.debeCambiarClave" role="alert">Estás usando una contraseña temporal. Debes cambiarla para poder usar el sistema.</div><form [formGroup]="form" (ngSubmit)="cambiar()"><div class="field"><label for="p-actual">Contraseña actual</label><input id="p-actual" type="password" formControlName="actual"></div><div class="field"><label for="p-nueva">Nueva contraseña</label><input id="p-nueva" type="password" formControlName="nueva"><small>Mínimo 10 caracteres con mayúscula, minúscula y número.</small></div><div class="field"><label for="p-confirm">Confirmar nueva contraseña</label><input id="p-confirm" type="password" formControlName="confirmar"></div><div class="form-error" *ngIf="error" role="alert">{{error}}</div><div class="form-success" *ngIf="exito" role="status">{{exito}}</div><div class="form-actions"><button class="btn btn-primary" type="submit" [disabled]="cargando">Actualizar contraseña</button></div></form></section></div>
+diff --git a/src/app/components/perfil/perfil.component.ts b/src/app/components/perfil/perfil.component.ts
+index 397965a..36e556e 100644
+--- a/src/app/components/perfil/perfil.component.ts
++++ b/src/app/components/perfil/perfil.component.ts
+@@ -1,27 +1,46 @@
+-import { Component } from '@angular/core';
++import { Component, OnInit } from '@angular/core';
+ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
++import { Router } from '@angular/router';
++import { firstValueFrom } from 'rxjs';
++import { ApiService, mensajeError } from '../../core/api.service';
++import { ClienteResponse, LicenciaResponse } from '../../core/api-models';
+ import { AuthService } from '../../core/auth.service';
+-import { DatosService } from '../../core/datos.service';
++import { validarControl } from '../../core/validadores';
+ 
+ @Component({ selector: 'app-perfil', standalone: false, templateUrl: './perfil.component.html', styleUrl: './perfil.component.css' })
+-export class PerfilComponent {
++export class PerfilComponent implements OnInit {
+   form: FormGroup;
+-  codigo = '';
++  cliente: ClienteResponse | null = null;
++  licencia: LicenciaResponse | null = null;
+   error = '';
+   exito = '';
+   cargando = false;
+-  constructor(public auth: AuthService, public datos: DatosService, fb: FormBuilder) {
+-    this.form = fb.group({ actual: ['', Validators.required], nueva: ['', [Validators.required, Validators.minLength(10)]], confirmar: ['', Validators.required] });
++  readonly validar = validarControl;
++  constructor(public auth: AuthService, private api: ApiService, private router: Router, fb: FormBuilder) {
++    this.form = fb.group({
++      actual: ['', Validators.required],
++      nueva: ['', [Validators.required, Validators.pattern('(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{10,72}')]],
++      confirmar: ['', Validators.required]
++    });
++  }
++  async ngOnInit(): Promise<void> {
++    const sesion = this.auth.sesion;
++    if (!sesion || sesion.tipo !== 'CLIENTE') { return; }
++    try { this.cliente = await firstValueFrom(this.api.cliente(sesion.id)); } catch { this.cliente = null; }
++    try { this.licencia = await firstValueFrom(this.api.licencia(sesion.id)); } catch { this.licencia = null; }
+   }
+-  get cliente() { return this.datos.clientes.find(c => c.id === this.auth.sesion?.clienteId); }
+   async cambiar(): Promise<void> {
+     this.form.markAllAsTouched(); this.error = ''; this.exito = '';
+-    if (this.form.invalid || this.cargando) { this.error = 'Completa los tres campos.'; return; }
++    if (this.form.invalid || this.cargando) { this.error = 'Completa los tres campos; la nueva contraseña debe cumplir el formato indicado.'; return; }
+     const v = this.form.getRawValue();
+     if (v.nueva !== v.confirmar) { this.error = 'Las contraseñas no coinciden.'; return; }
++    const eraTemporal = !!this.auth.sesion?.debeCambiarClave;
+     this.cargando = true;
+-    try { this.codigo = await this.auth.cambiarClave(v.actual, v.nueva); this.exito = 'Contraseña modificada localmente.'; this.form.reset(); }
+-    catch (e) { this.error = e instanceof Error ? e.message : 'No se pudo actualizar la contraseña.'; }
++    try {
++      await this.auth.cambiarClave(v.actual, v.nueva);
++      this.form.reset(); this.exito = 'Contraseña actualizada.';
++      if (eraTemporal) { await this.router.navigateByUrl('/panel'); }
++    } catch (e) { this.error = mensajeError(e, 'No se pudo actualizar la contraseña.'); }
+     finally { this.cargando = false; }
+   }
+ }
+diff --git a/src/app/components/recuperacion/recuperacion.component.html b/src/app/components/recuperacion/recuperacion.component.html
+index 775986b..5d92368 100644
+--- a/src/app/components/recuperacion/recuperacion.component.html
++++ b/src/app/components/recuperacion/recuperacion.component.html
+@@ -1 +1 @@
+-<div class="narrow-page"><div class="eyebrow">RECUPERACIÓN DE ACCESO</div><h1>Restablecer contraseña</h1><p class="small-note">Usa el código entregado al crear tu cuenta. Esta recuperación es exclusivamente local; no se envían correos.</p><div class="panel panel-pad" *ngIf="!exito"><form [formGroup]="form" (ngSubmit)="guardar()"><div class="form-grid"><div class="field wide"><label for="rec-correo">Correo electrónico</label><input id="rec-correo" type="email" formControlName="correo"><span class="error" *ngIf="validar(form,'correo')">{{validar(form,'correo')}}</span></div><div class="field wide"><label for="rec-codigo">Código de recuperación</label><input id="rec-codigo" formControlName="codigo"><span class="error" *ngIf="validar(form,'codigo')">{{validar(form,'codigo')}}</span></div><div class="field"><label for="rec-clave">Nueva contraseña</label><input id="rec-clave" type="password" formControlName="clave"><small>Mínimo 10 caracteres, mayúscula, minúscula y número.</small></div><div class="field"><label for="rec-confirmar">Confirmar contraseña</label><input id="rec-confirmar" type="password" formControlName="confirmar"></div></div><div class="form-error" *ngIf="error" role="alert">{{error}}</div><div class="form-actions"><button class="btn btn-primary" type="submit" [disabled]="cargando">Actualizar contraseña</button><a class="btn btn-outline" routerLink="/acceso">Volver al acceso</a></div></form></div><div class="panel panel-pad" *ngIf="exito"><h2>Contraseña actualizada</h2><p>Tu código anterior dejó de funcionar. Guarda el nuevo código de recuperación:</p><div class="recovery-code">{{auth.ultimoCodigo}}</div><div class="form-actions"><a class="btn btn-primary" routerLink="/acceso">Iniciar sesión</a></div></div></div>
++<div class="narrow-page"><div class="eyebrow">RECUPERACIÓN DE ACCESO</div><h1>¿Olvidaste tu contraseña?</h1><p class="small-note">Por seguridad, la contraseña no se restablece desde esta página.</p><div class="panel panel-pad"><ol><li>Comunícate con un asesor o un administrador de RutaCar e indícale tu correo de acceso.</li><li>El personal genera una <strong>contraseña temporal de un solo uso</strong> y te la entrega.</li><li>Inicia sesión con esa contraseña: el sistema te pedirá crear una nueva antes de continuar.</li></ol><div class="form-actions"><a class="btn btn-primary" routerLink="/acceso">Volver al acceso</a></div></div></div>
+diff --git a/src/app/components/recuperacion/recuperacion.component.ts b/src/app/components/recuperacion/recuperacion.component.ts
+index fbf617f..6e66232 100644
+--- a/src/app/components/recuperacion/recuperacion.component.ts
++++ b/src/app/components/recuperacion/recuperacion.component.ts
+@@ -1,26 +1,5 @@
+ import { Component } from '@angular/core';
+-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+-import { AuthService } from '../../core/auth.service';
+-import { validarControl } from '../../core/validadores';
+ 
++/** La recuperación ya no se hace en el navegador: la restablece el personal desde el módulo de cuentas. */
+ @Component({ selector: 'app-recuperacion', standalone: false, templateUrl: './recuperacion.component.html', styleUrl: './recuperacion.component.css' })
+-export class RecuperacionComponent {
+-  form: FormGroup;
+-  error = '';
+-  exito = false;
+-  cargando = false;
+-  readonly validar = validarControl;
+-  constructor(fb: FormBuilder, public auth: AuthService) {
+-    this.form = fb.group({ correo: ['', [Validators.required, Validators.email]], codigo: ['', Validators.required], clave: ['', [Validators.required, Validators.minLength(10)]], confirmar: ['', Validators.required] });
+-  }
+-  async guardar(): Promise<void> {
+-    this.form.markAllAsTouched(); this.error = '';
+-    if (this.form.invalid || this.cargando) { return; }
+-    const v = this.form.getRawValue();
+-    if (v.clave !== v.confirmar) { this.error = 'Las contraseñas no coinciden.'; return; }
+-    this.cargando = true;
+-    try { await this.auth.recuperar(v.correo, v.codigo, v.clave); this.exito = true; }
+-    catch (e) { this.error = e instanceof Error ? e.message : 'No se pudo recuperar el acceso.'; }
+-    finally { this.cargando = false; }
+-  }
+-}
++export class RecuperacionComponent {}
+diff --git a/src/app/core/api-config.ts b/src/app/core/api-config.ts
+new file mode 100644
+index 0000000..43dc41c
+--- /dev/null
++++ b/src/app/core/api-config.ts
+@@ -0,0 +1,5 @@
++/**
++ * URL base del backend Spring Boot (puerto 8080 por defecto).
++ * Si el backend corre en otra máquina o en una VM, se cambia solo aquí.
++ */
++export const API_URL = 'http://localhost:8080/api';
+diff --git a/src/app/core/api-models.ts b/src/app/core/api-models.ts
+new file mode 100644
+index 0000000..edb8910
+--- /dev/null
++++ b/src/app/core/api-models.ts
+@@ -0,0 +1,343 @@
++/**
++ * Tipos que reflejan, campo por campo, las respuestas y peticiones del backend
++ * (paquete co.edu.unbosque.alquiler.dto). Los estados y roles llegan en mayúscula.
++ */
++
++// ---------- Enumeraciones ----------
++export type TipoCuenta = 'CLIENTE' | 'EMPLEADO';
++export type RolBackend = 'ADMINISTRADOR' | 'ASESOR' | 'TECNICO' | 'CLIENTE';
++export type TipoEmpleado = 'ADMINISTRADOR' | 'ASESOR' | 'TECNICO';
++export type EstadoReserva = 'PENDIENTE' | 'CONFIRMADA' | 'EN_CURSO' | 'FINALIZADA' | 'CANCELADA';
++export type EstadoPago = 'APROBADO' | 'RECHAZADO' | 'REEMBOLSADO';
++export type EstadoVehiculo = 'DISPONIBLE' | 'ALQUILADO' | 'EN_MANTENIMIENTO' | 'BAJA' | 'VENDIDO';
++export type EstadoCliente = 'ACTIVO' | 'INACTIVO' | 'BLOQUEADO';
++export type EstadoCatalogo = 'ACTIVO' | 'INACTIVO';
++export type EstadoCargo = 'PENDIENTE' | 'PAGADA' | 'ANULADA';
++export type TipoInspeccion = 'ENTREGA' | 'DEVOLUCION' | 'MANTENIMIENTO';
++export type NivelCombustible = 'VACIO' | 'UN_CUARTO' | 'MEDIO' | 'TRES_CUARTOS' | 'LLENO';
++export type SeveridadDano = 'LEVE' | 'MODERADO' | 'GRAVE';
++export type TransmisionBackend = 'MANUAL' | 'AUTOMATICA';
++
++// ---------- Errores y paginación ----------
++export interface ApiError {
++  timestamp: string;
++  status: number;
++  error: string;
++  mensaje: string;
++  detalles: Record<string, string> | null;
++}
++
++/** Respuesta paginada de Spring Data (solo los campos que usa el front). */
++export interface Pagina<T> {
++  content: T[];
++  totalElements: number;
++  totalPages: number;
++  number: number;
++  size: number;
++}
++
++// ---------- Autenticación ----------
++export interface LoginRequest { correo: string; clave: string; }
++
++export interface PerfilResponse {
++  id: number;
++  tipo: TipoCuenta;
++  rol: RolBackend;
++  nombre: string;
++  correo: string;
++  estado: string;
++  debeCambiarClave: boolean;
++}
++
++export interface LoginResponse {
++  token: string;
++  tipoToken: string;
++  expiraEnSegundos: number;
++  usuario: PerfilResponse;
++}
++
++export interface ClienteRequest {
++  numeroDocumento: string;
++  primerNombre: string;
++  segundoNombre?: string;
++  primerApellido: string;
++  segundoApellido?: string;
++  correo: string;
++  telefono?: string;
++  clave: string;
++}
++
++export interface LicenciaRequest {
++  numeroLicencia: string;
++  categoriaLicencia: string;
++  fechaExpedicion: string;
++  fechaVencimiento: string;
++}
++
++export interface RegistroRequest { cliente: ClienteRequest; licencia?: LicenciaRequest; }
++export interface CambiarClaveRequest { claveActual: string; claveNueva: string; }
++export interface RestablecerClaveRequest { tipo: TipoCuenta; id: number; }
++export interface ClaveTemporalResponse { claveTemporal: string; }
++
++// ---------- Clientes y licencias ----------
++export interface ClienteResponse {
++  idCliente: number;
++  numeroDocumento: string;
++  primerNombre: string;
++  segundoNombre: string | null;
++  primerApellido: string;
++  segundoApellido: string | null;
++  correo: string;
++  telefono: string | null;
++  estado: EstadoCliente;
++}
++
++export interface ClienteUpdateRequest {
++  primerNombre: string;
++  segundoNombre?: string;
++  primerApellido: string;
++  segundoApellido?: string;
++  correo: string;
++  telefono?: string;
++}
++
++export interface LicenciaResponse {
++  idLicencia: number;
++  idCliente: number;
++  numeroLicencia: string;
++  categoriaLicencia: string;
++  fechaExpedicion: string;
++  fechaVencimiento: string;
++}
++
++// ---------- Catálogos ----------
++export interface CategoriaRequest {
++  nombreCategoria: string;
++  capacidadPasajeros: number;
++  tarifaDiaria: number;
++  tipoTransmision: TransmisionBackend;
++}
++export interface CategoriaResponse {
++  idCategoria: number;
++  nombreCategoria: string;
++  capacidadPasajeros: number;
++  tarifaDiaria: number;
++  tipoTransmision: TransmisionBackend;
++  estado: EstadoCatalogo;
++}
++
++export interface SedeRequest { nombreSede: string; ciudad: string; direccion: string; capacidadEstacionamiento: number; }
++export interface SedeResponse {
++  idSede: number;
++  nombreSede: string;
++  ciudad: string;
++  direccion: string;
++  capacidadEstacionamiento: number;
++  estado: EstadoCatalogo;
++}
++
++export interface SeguroRequest { nombreSeguro: string; descripcion?: string; costoDiario: number; }
++export interface SeguroResponse {
++  idSeguro: number;
++  nombreSeguro: string;
++  descripcion: string | null;
++  costoDiario: number;
++  estado: EstadoCatalogo;
++}
++
++// ---------- Vehículos ----------
++export interface VehiculoRequest {
++  placa: string;
++  marca: string;
++  modeloAnio: number;
++  kilometraje: number;
++  color?: string;
++  idCategoria: number;
++  idSede: number;
++}
++export interface VehiculoResponse {
++  idVehiculo: number;
++  placa: string;
++  marca: string;
++  modeloAnio: number;
++  kilometraje: number;
++  estado: EstadoVehiculo;
++  color: string | null;
++  idCategoria: number;
++  nombreCategoria: string;
++  idSede: number;
++  nombreSede: string;
++}
++
++// ---------- Empleados ----------
++export interface EmpleadoRequest {
++  numeroDocumento: string;
++  primerNombre: string;
++  primerApellido: string;
++  correo: string;
++  clave: string;
++  fechaContratacion: string;
++  idSede: number;
++  tipo: TipoEmpleado;
++  mostradorAsignado?: number;
++  especialidad?: string;
++  nivelAcceso?: string;
++  bonoGerencial?: number;
++}
++export interface EmpleadoResponse {
++  idEmpleado: number;
++  numeroDocumento: string;
++  primerNombre: string;
++  primerApellido: string;
++  correo: string;
++  fechaContratacion: string;
++  estado: EstadoCatalogo;
++  idSede: number;
++  nombreSede: string;
++  tipo: TipoEmpleado;
++  mostradorAsignado: number | null;
++  especialidad: string | null;
++  nivelAcceso: string | null;
++  bonoGerencial: number | null;
++}
++
++// ---------- Reservas y pagos ----------
++export interface ReservaRequest {
++  idCliente: number;
++  idVehiculo: number;
++  idAsesor?: number;
++  idSedeEntrega: number;
++  idSedeRecibe: number;
++  fechaInicio: string;
++  fechaFin: string;
++  idsSeguros?: number[];
++}
++
++export interface PagoRequest { monto: number; metodoPago: string; estado: EstadoPago; }
++export interface PagoResponse {
++  idPago: number;
++  fechaPago: string;
++  monto: number;
++  metodoPago: string;
++  estadoPago: EstadoPago;
++}
++export interface SeguroContratado { idSeguro: number; nombreSeguro: string; costoContratado: number; }
++
++export interface ReservaResumen {
++  idReserva: number;
++  estadoReserva: EstadoReserva;
++  fechaInicio: string;
++  fechaFin: string;
++  costoTotal: number;
++  idCliente: number;
++  nombreCliente: string;
++  idVehiculo: number;
++  placa: string;
++}
++
++export interface ReservaResponse {
++  idReserva: number;
++  estadoReserva: EstadoReserva;
++  fechaCreacion: string;
++  fechaInicio: string;
++  fechaFin: string;
++  costoTotal: number;
++  saldoPendiente: number;
++  idCliente: number;
++  nombreCliente: string;
++  idVehiculo: number;
++  placa: string;
++  idAsesor: number | null;
++  nombreAsesor: string | null;
++  idSedeEntrega: number;
++  nombreSedeEntrega: string;
++  idSedeRecibe: number;
++  nombreSedeRecibe: string;
++  seguros: SeguroContratado[];
++  pagos: PagoResponse[];
++}
++
++export interface CotizacionResponse { idVehiculo: number; dias: number; costoTotal: number; }
++
++export interface PenalizacionRequest { concepto: string; monto: number; idInspeccion?: string; }
++export interface PenalizacionResponse {
++  idPenalizacion: number;
++  idReserva: number;
++  fechaCargo: string;
++  concepto: string;
++  monto: number;
++  estadoCargo: EstadoCargo;
++  idInspeccion: string | null;
++}
++
++// ---------- Inspecciones (MongoDB) ----------
++export interface DanoDTO { zona: string; descripcion: string; severidad: SeveridadDano; }
++export interface PiezaDTO { nombre: string; cantidad: number; costo: number; }
++
++export interface InspeccionRequest {
++  tipo: TipoInspeccion;
++  idReserva?: number;
++  combustible: NivelCombustible;
++  kilometraje: number;
++  observacionesGenerales?: string;
++  danos?: DanoDTO[];
++  piezasCambiadas?: PiezaDTO[];
++}
++export interface InspeccionUpdateRequest {
++  combustible: NivelCombustible;
++  observacionesGenerales?: string;
++  danos?: DanoDTO[];
++  piezasCambiadas?: PiezaDTO[];
++}
++export interface InspeccionResponse {
++  idInspeccion: string;
++  tipo: TipoInspeccion;
++  idVehiculo: number;
++  idReserva: number | null;
++  idEmpleado: number | null;
++  combustible: NivelCombustible;
++  kilometraje: number;
++  observacionesGenerales: string | null;
++  danos: DanoDTO[];
++  piezasCambiadas: PiezaDTO[];
++  fotos: string[];
++  fechaInspeccion: string;
++}
++export interface CostoMantenimientoResponse { idVehiculo: number; costoTotal: number; }
++export interface PiezaFrecuenciaResponse { nombre: string; totalCambiadas: number; costoTotal: number; }
++export interface GastoTecnicoResponse { idTecnico: number; totalPiezas: number; costoTotal: number; }
++
++// ---------- Reportes (RF-10) ----------
++export interface ReservaHistorial {
++  idReserva: number;
++  estadoReserva: EstadoReserva;
++  fechaInicio: string;
++  fechaFin: string;
++  costoTotal: number;
++  idCliente: number;
++  nombreCliente: string;
++  sedeEntrega: string;
++  sedeRecibe: string;
++}
++export interface ResumenHistorial {
++  totalReservas: number;
++  reservasFinalizadas: number;
++  reservasCanceladas: number;
++  ingresosPorAlquiler: number;
++  totalInspecciones: number;
++  totalDanosReportados: number;
++  totalPiezasCambiadas: number;
++  costoMantenimiento: number;
++  totalPenalizaciones: number;
++}
++export interface HistorialVehiculoResponse {
++  vehiculo: VehiculoResponse;
++  resumen: ResumenHistorial;
++  reservas: ReservaHistorial[];
++  inspecciones: InspeccionResponse[];
++  penalizaciones: PenalizacionResponse[];
++}
++export interface IngresoSedeResponse { idSede: number; nombreSede: string; ingresos: number; pagosAprobados: number; }
++export interface FlotaEstadoResponse { estado: EstadoVehiculo; cantidad: number; }
++export interface SeguroRankingResponse { idSeguro: number; nombreSeguro: string; vecesContratado: number; valorContratado: number; }
++export interface EmpleadosSedeResponse { idSede: number; nombreSede: string; rol: TipoEmpleado; cantidad: number; }
+diff --git a/src/app/core/api.service.ts b/src/app/core/api.service.ts
+new file mode 100644
+index 0000000..ca10627
+--- /dev/null
++++ b/src/app/core/api.service.ts
+@@ -0,0 +1,152 @@
++import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
++import { Injectable } from '@angular/core';
++import { Observable } from 'rxjs';
++import { API_URL } from './api-config';
++import {
++  ApiError, CambiarClaveRequest, CategoriaRequest, CategoriaResponse, ClaveTemporalResponse,
++  ClienteResponse, ClienteUpdateRequest, EstadoCliente, CostoMantenimientoResponse, CotizacionResponse, EmpleadoRequest,
++  EmpleadoResponse, EmpleadosSedeResponse, EstadoCatalogo, EstadoReserva, EstadoVehiculo, FlotaEstadoResponse,
++  GastoTecnicoResponse, HistorialVehiculoResponse, IngresoSedeResponse, InspeccionRequest, InspeccionResponse,
++  InspeccionUpdateRequest, LicenciaRequest, LicenciaResponse, LoginRequest, LoginResponse, PagoRequest, PagoResponse,
++  Pagina, PenalizacionRequest, PenalizacionResponse, PerfilResponse, PiezaDTO, PiezaFrecuenciaResponse,
++  RegistroRequest, RestablecerClaveRequest, ReservaRequest, ReservaResponse, ReservaResumen, SedeRequest, SedeResponse,
++  SeguroRankingResponse, SeguroRequest, SeguroResponse, TipoEmpleado, TipoInspeccion, VehiculoRequest, VehiculoResponse
++} from './api-models';
++
++type Filtros = Record<string, string | number | boolean | null | undefined | (string | number)[]>;
++
++/** Convierte un objeto de filtros en HttpParams, omitiendo los valores vacíos. */
++function parametros(filtros: Filtros = {}): HttpParams {
++  let p = new HttpParams();
++  for (const [clave, valor] of Object.entries(filtros)) {
++    if (valor === null || valor === undefined || valor === '') { continue; }
++    p = p.set(clave, Array.isArray(valor) ? valor.join(',') : String(valor));
++  }
++  return p;
++}
++
++/**
++ * Mensaje legible para mostrar al usuario a partir de un error HTTP del backend
++ * (formato ApiError: mensaje + detalles por campo) o de un Error cualquiera.
++ */
++export function mensajeError(e: unknown, defecto = 'No se pudo completar la operación.'): string {
++  if (e instanceof HttpErrorResponse) {
++    if (e.status === 0) { return 'No hay conexión con el servidor. Verifica que el backend esté en ejecución.'; }
++    const cuerpo = e.error as Partial<ApiError> | null;
++    const detalles = cuerpo?.detalles ? Object.entries(cuerpo.detalles).map(([campo, texto]) => `${campo}: ${texto}`).join('. ') : '';
++    return [cuerpo?.mensaje, detalles].filter(Boolean).join(' · ') || defecto;
++  }
++  return e instanceof Error ? e.message : defecto;
++}
++
++/** Acceso tipado a todos los endpoints del backend. No guarda estado: cada método devuelve un Observable. */
++@Injectable({ providedIn: 'root' })
++export class ApiService {
++  constructor(private http: HttpClient) {}
++
++  // ---------- Autenticación ----------
++  login(datos: LoginRequest): Observable<LoginResponse> { return this.http.post<LoginResponse>(`${API_URL}/auth/login`, datos); }
++  registro(datos: RegistroRequest): Observable<LoginResponse> { return this.http.post<LoginResponse>(`${API_URL}/auth/registro`, datos); }
++  me(): Observable<PerfilResponse> { return this.http.get<PerfilResponse>(`${API_URL}/auth/me`); }
++  cambiarClave(datos: CambiarClaveRequest): Observable<LoginResponse> { return this.http.post<LoginResponse>(`${API_URL}/auth/cambiar-clave`, datos); }
++  restablecerClave(datos: RestablecerClaveRequest): Observable<ClaveTemporalResponse> { return this.http.post<ClaveTemporalResponse>(`${API_URL}/auth/restablecer-clave`, datos); }
++
++  // ---------- Sedes, categorías y seguros ----------
++  sedes(incluirInactivos = false): Observable<SedeResponse[]> { return this.http.get<SedeResponse[]>(`${API_URL}/sedes`, { params: parametros({ incluirInactivos }) }); }
++  crearSede(datos: SedeRequest): Observable<SedeResponse> { return this.http.post<SedeResponse>(`${API_URL}/sedes`, datos); }
++  actualizarSede(id: number, datos: SedeRequest): Observable<SedeResponse> { return this.http.put<SedeResponse>(`${API_URL}/sedes/${id}`, datos); }
++  estadoSede(id: number, estado: EstadoCatalogo): Observable<SedeResponse> { return this.http.patch<SedeResponse>(`${API_URL}/sedes/${id}/estado`, { estado }); }
++
++  categorias(incluirInactivos = false): Observable<CategoriaResponse[]> { return this.http.get<CategoriaResponse[]>(`${API_URL}/categorias`, { params: parametros({ incluirInactivos }) }); }
++  crearCategoria(datos: CategoriaRequest): Observable<CategoriaResponse> { return this.http.post<CategoriaResponse>(`${API_URL}/categorias`, datos); }
++  actualizarCategoria(id: number, datos: CategoriaRequest): Observable<CategoriaResponse> { return this.http.put<CategoriaResponse>(`${API_URL}/categorias/${id}`, datos); }
++  estadoCategoria(id: number, estado: EstadoCatalogo): Observable<CategoriaResponse> { return this.http.patch<CategoriaResponse>(`${API_URL}/categorias/${id}/estado`, { estado }); }
++
++  seguros(incluirInactivos = false): Observable<SeguroResponse[]> { return this.http.get<SeguroResponse[]>(`${API_URL}/seguros`, { params: parametros({ incluirInactivos }) }); }
++  crearSeguro(datos: SeguroRequest): Observable<SeguroResponse> { return this.http.post<SeguroResponse>(`${API_URL}/seguros`, datos); }
++  actualizarSeguro(id: number, datos: SeguroRequest): Observable<SeguroResponse> { return this.http.put<SeguroResponse>(`${API_URL}/seguros/${id}`, datos); }
++  estadoSeguro(id: number, estado: EstadoCatalogo): Observable<SeguroResponse> { return this.http.patch<SeguroResponse>(`${API_URL}/seguros/${id}/estado`, { estado }); }
++
++  // ---------- Vehículos ----------
++  vehiculosDisponibles(f: { fechaInicio: string; fechaFin: string; idCategoria?: number | null; idSede?: number | null }): Observable<VehiculoResponse[]> {
++    return this.http.get<VehiculoResponse[]>(`${API_URL}/vehiculos/disponibles`, { params: parametros(f) });
++  }
++  vehiculos(f: { idSede?: number | null; estado?: EstadoVehiculo | null; page?: number; size?: number } = {}): Observable<Pagina<VehiculoResponse>> {
++    return this.http.get<Pagina<VehiculoResponse>>(`${API_URL}/vehiculos`, { params: parametros(f) });
++  }
++  vehiculo(id: number): Observable<VehiculoResponse> { return this.http.get<VehiculoResponse>(`${API_URL}/vehiculos/${id}`); }
++  crearVehiculo(datos: VehiculoRequest): Observable<VehiculoResponse> { return this.http.post<VehiculoResponse>(`${API_URL}/vehiculos`, datos); }
++  estadoVehiculo(id: number, estado: EstadoVehiculo): Observable<VehiculoResponse> { return this.http.patch<VehiculoResponse>(`${API_URL}/vehiculos/${id}/estado`, { estado }); }
++
++  // ---------- Clientes y licencias ----------
++  clientes(f: { page?: number; size?: number } = {}): Observable<Pagina<ClienteResponse>> { return this.http.get<Pagina<ClienteResponse>>(`${API_URL}/clientes`, { params: parametros(f) }); }
++  cliente(id: number): Observable<ClienteResponse> { return this.http.get<ClienteResponse>(`${API_URL}/clientes/${id}`); }
++  clientePorDocumento(documento: string): Observable<ClienteResponse> { return this.http.get<ClienteResponse>(`${API_URL}/clientes/documento/${encodeURIComponent(documento)}`); }
++  actualizarCliente(id: number, datos: ClienteUpdateRequest): Observable<ClienteResponse> { return this.http.put<ClienteResponse>(`${API_URL}/clientes/${id}`, datos); }
++  estadoCliente(id: number, estado: EstadoCliente): Observable<ClienteResponse> { return this.http.patch<ClienteResponse>(`${API_URL}/clientes/${id}/estado`, { estado }); }
++  licencia(idCliente: number): Observable<LicenciaResponse> { return this.http.get<LicenciaResponse>(`${API_URL}/clientes/${idCliente}/licencia`); }
++  registrarLicencia(idCliente: number, datos: LicenciaRequest): Observable<LicenciaResponse> { return this.http.post<LicenciaResponse>(`${API_URL}/clientes/${idCliente}/licencia`, datos); }
++
++  // ---------- Empleados ----------
++  empleados(f: { tipo?: TipoEmpleado | null; idSede?: number | null } = {}): Observable<EmpleadoResponse[]> { return this.http.get<EmpleadoResponse[]>(`${API_URL}/empleados`, { params: parametros(f) }); }
++  empleado(id: number): Observable<EmpleadoResponse> { return this.http.get<EmpleadoResponse>(`${API_URL}/empleados/${id}`); }
++  crearEmpleado(datos: EmpleadoRequest): Observable<EmpleadoResponse> { return this.http.post<EmpleadoResponse>(`${API_URL}/empleados`, datos); }
++  estadoEmpleado(id: number, estado: EstadoCatalogo): Observable<EmpleadoResponse> { return this.http.patch<EmpleadoResponse>(`${API_URL}/empleados/${id}/estado`, { estado }); }
++
++  // ---------- Reservas y pagos ----------
++  cotizar(f: { idVehiculo: number; fechaInicio: string; fechaFin: string; idsSeguros?: number[] }): Observable<CotizacionResponse> {
++    return this.http.get<CotizacionResponse>(`${API_URL}/reservas/cotizacion`, { params: parametros(f) });
++  }
++  reservas(f: { idCliente?: number | null; estado?: EstadoReserva | null; page?: number; size?: number } = {}): Observable<Pagina<ReservaResumen>> {
++    return this.http.get<Pagina<ReservaResumen>>(`${API_URL}/reservas`, { params: parametros(f) });
++  }
++  reserva(id: number): Observable<ReservaResponse> { return this.http.get<ReservaResponse>(`${API_URL}/reservas/${id}`); }
++  crearReserva(datos: ReservaRequest): Observable<ReservaResponse> { return this.http.post<ReservaResponse>(`${API_URL}/reservas`, datos); }
++  pagosDeReserva(id: number): Observable<PagoResponse[]> { return this.http.get<PagoResponse[]>(`${API_URL}/reservas/${id}/pagos`); }
++  registrarPago(id: number, datos: PagoRequest): Observable<ReservaResponse> { return this.http.post<ReservaResponse>(`${API_URL}/reservas/${id}/pagos`, datos); }
++  iniciarReserva(id: number, idAsesor: number): Observable<ReservaResponse> { return this.http.post<ReservaResponse>(`${API_URL}/reservas/${id}/iniciar`, { idAsesor }); }
++  finalizarReserva(id: number): Observable<ReservaResponse> { return this.http.post<ReservaResponse>(`${API_URL}/reservas/${id}/finalizar`, null); }
++  cancelarReserva(id: number): Observable<ReservaResponse> { return this.http.post<ReservaResponse>(`${API_URL}/reservas/${id}/cancelar`, null); }
++
++  // ---------- Penalizaciones ----------
++  penalizacionesDeReserva(idReserva: number): Observable<PenalizacionResponse[]> { return this.http.get<PenalizacionResponse[]>(`${API_URL}/reservas/${idReserva}/penalizaciones`); }
++  penalizacionesDeCliente(idCliente: number): Observable<PenalizacionResponse[]> { return this.http.get<PenalizacionResponse[]>(`${API_URL}/clientes/${idCliente}/penalizaciones`); }
++  crearPenalizacion(idReserva: number, datos: PenalizacionRequest): Observable<PenalizacionResponse> { return this.http.post<PenalizacionResponse>(`${API_URL}/reservas/${idReserva}/penalizaciones`, datos); }
++  estadoPenalizacion(id: number, estado: 'PAGADA' | 'ANULADA'): Observable<PenalizacionResponse> { return this.http.patch<PenalizacionResponse>(`${API_URL}/penalizaciones/${id}/estado`, { estado }); }
++
++  // ---------- Inspecciones (MongoDB) ----------
++  inspeccionesDeVehiculo(idVehiculo: number): Observable<InspeccionResponse[]> { return this.http.get<InspeccionResponse[]>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones`); }
++  costoMantenimiento(idVehiculo: number): Observable<CostoMantenimientoResponse> { return this.http.get<CostoMantenimientoResponse>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones/costo-total`); }
++  inspeccion(idVehiculo: number, idInspeccion: string): Observable<InspeccionResponse> { return this.http.get<InspeccionResponse>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones/${idInspeccion}`); }
++  crearInspeccion(idVehiculo: number, datos: InspeccionRequest): Observable<InspeccionResponse> { return this.http.post<InspeccionResponse>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones`, datos); }
++  actualizarInspeccion(idVehiculo: number, idInspeccion: string, datos: InspeccionUpdateRequest): Observable<InspeccionResponse> {
++    return this.http.put<InspeccionResponse>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones/${idInspeccion}`, datos);
++  }
++  agregarPieza(idVehiculo: number, idInspeccion: string, pieza: PiezaDTO): Observable<InspeccionResponse> {
++    return this.http.post<InspeccionResponse>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones/${idInspeccion}/piezas`, pieza);
++  }
++  eliminarInspeccion(idVehiculo: number, idInspeccion: string): Observable<void> { return this.http.delete<void>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones/${idInspeccion}`); }
++  subirFoto(idVehiculo: number, idInspeccion: string, archivo: File): Observable<InspeccionResponse> {
++    const formulario = new FormData();
++    formulario.append('archivo', archivo);
++    return this.http.post<InspeccionResponse>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones/${idInspeccion}/fotos`, formulario);
++  }
++  quitarFoto(idVehiculo: number, idInspeccion: string, idFoto: string): Observable<InspeccionResponse> {
++    return this.http.delete<InspeccionResponse>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones/${idInspeccion}/fotos/${idFoto}`);
++  }
++  /** La foto exige el JWT, por eso se descarga como Blob y no con un {@code <img src>} directo. */
++  foto(idFoto: string): Observable<Blob> { return this.http.get(`${API_URL}/inspecciones/fotos/${idFoto}`, { responseType: 'blob' }); }
++  buscarInspecciones(f: { pieza?: string; idEmpleado?: number | null; tipo?: TipoInspeccion | null; desde?: string; hasta?: string } = {}): Observable<InspeccionResponse[]> {
++    return this.http.get<InspeccionResponse[]>(`${API_URL}/inspecciones/buscar`, { params: parametros(f) });
++  }
++  inspeccionesDeReserva(idReserva: number): Observable<InspeccionResponse[]> { return this.http.get<InspeccionResponse[]>(`${API_URL}/inspecciones/reserva/${idReserva}`); }
++  piezasMasCambiadas(limite = 5): Observable<PiezaFrecuenciaResponse[]> { return this.http.get<PiezaFrecuenciaResponse[]>(`${API_URL}/inspecciones/estadisticas/piezas-mas-cambiadas`, { params: parametros({ limite }) }); }
++  gastoPorTecnico(): Observable<GastoTecnicoResponse[]> { return this.http.get<GastoTecnicoResponse[]>(`${API_URL}/inspecciones/estadisticas/gasto-por-tecnico`); }
++
++  // ---------- Reportes (RF-10) ----------
++  historialVehiculo(idVehiculo: number): Observable<HistorialVehiculoResponse> { return this.http.get<HistorialVehiculoResponse>(`${API_URL}/reportes/vehiculos/${idVehiculo}/historial`); }
++  estadoFlota(idSede?: number | null): Observable<FlotaEstadoResponse[]> { return this.http.get<FlotaEstadoResponse[]>(`${API_URL}/reportes/flota/estado`, { params: parametros({ idSede }) }); }
++  ingresosPorSede(f: { desde?: string; hasta?: string } = {}): Observable<IngresoSedeResponse[]> { return this.http.get<IngresoSedeResponse[]>(`${API_URL}/reportes/ingresos-por-sede`, { params: parametros(f) }); }
++  segurosMasContratados(limite = 10): Observable<SeguroRankingResponse[]> { return this.http.get<SeguroRankingResponse[]>(`${API_URL}/reportes/seguros-mas-contratados`, { params: parametros({ limite }) }); }
++  empleadosPorSede(): Observable<EmpleadosSedeResponse[]> { return this.http.get<EmpleadosSedeResponse[]>(`${API_URL}/reportes/empleados-por-sede`); }
++}
+diff --git a/src/app/core/auth.interceptor.ts b/src/app/core/auth.interceptor.ts
+new file mode 100644
+index 0000000..9f2dd5d
+--- /dev/null
++++ b/src/app/core/auth.interceptor.ts
+@@ -0,0 +1,25 @@
++import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
++import { inject } from '@angular/core';
++import { Router } from '@angular/router';
++import { catchError, throwError } from 'rxjs';
++import { API_URL } from './api-config';
++import { AuthService } from './auth.service';
++
++/**
++ * Agrega el JWT a las peticiones al backend y, si este responde 401 con una sesión abierta
++ * (token vencido o inválido), cierra la sesión y lleva al usuario a iniciar sesión de nuevo.
++ */
++export const authInterceptor: HttpInterceptorFn = (req, next) => {
++  if (!req.url.startsWith(API_URL)) { return next(req); }
++  const auth = inject(AuthService);
++  const router = inject(Router);
++  const token = auth.token;
++  const peticion = token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;
++  return next(peticion).pipe(catchError((error: HttpErrorResponse) => {
++    if (error.status === 401 && token && !req.url.endsWith('/auth/login')) {
++      auth.cerrarSesion();
++      router.navigate(['/acceso'], { queryParams: { volver: router.url } });
++    }
++    return throwError(() => error);
++  }));
++};
+diff --git a/src/app/core/auth.service.ts b/src/app/core/auth.service.ts
+index 0c443e7..0097f6d 100644
+--- a/src/app/core/auth.service.ts
++++ b/src/app/core/auth.service.ts
+@@ -1,215 +1,126 @@
+ import { Injectable } from '@angular/core';
+-import { BehaviorSubject } from 'rxjs';
+-import { DatosService } from './datos.service';
+-import { Cliente, RolEmpleado } from './models';
++import { BehaviorSubject, firstValueFrom } from 'rxjs';
++import { ApiService, mensajeError } from './api.service';
++import { LoginResponse, PerfilResponse, RegistroRequest, TipoCuenta } from './api-models';
+ 
+-export type RolAcceso = 'cliente' | RolEmpleado;
+-export interface CuentaLocal {
+-  id: string;
+-  correo: string;
+-  nombre: string;
++export type RolAcceso = 'cliente' | 'administrador' | 'asesor' | 'tecnico';
++
++/** Usuario autenticado, tal como lo describe el backend en /api/auth/me. */
++export interface Sesion {
++  id: number;
++  tipo: TipoCuenta;
+   rol: RolAcceso;
++  nombre: string;
++  correo: string;
++  estado: string;
++  /** true cuando la clave es temporal: solo se puede cambiar la clave hasta que se actualice. */
++  debeCambiarClave: boolean;
++  /** Temporales para las pantallas que aún usan datos locales; se eliminan al migrarlas. */
+   clienteId?: string;
+   empleadoId?: string;
+-  salt: string;
+-  claveHash: string;
+-  recuperacionSalt: string;
+-  recuperacionHash: string;
+-  creado: string;
+-  estado: 'activo' | 'inactivo';
+ }
+ 
+-const CUENTAS_KEY = 'alquiler-bd2-cuentas-locales-v3';
+-const SESION_KEY = 'alquiler-bd2-sesion-local-v3';
+-
+-const CUENTAS_DEMO: CuentaLocal[] = [
+-  {
+-    "id": "cuenta-admin-demo",
+-    "correo": "admin@rutacar.test",
+-    "nombre": "Administrador",
+-    "rol": "administrador",
+-    "salt": "fc7c3eea1c81628506338da4e40ff92ae96e4851b28af4f6",
+-    "claveHash": "effb49107f9306cb08c4ead7f1f43597f735f342030b724bb31a39d2c8ae3cff",
+-    "recuperacionSalt": "1f8697fcbe58602d49c2e9c0998234447fa3568c218a851c",
+-    "recuperacionHash": "856780ad99fbf3132288a950faf80484bba34287cc785a92b1d942f613a342f1",
+-    "creado": "2026-10-16T12:00:00.000Z",
+-    "estado": "activo"
+-  },
+-  {
+-    "id": "cuenta-asesor-demo",
+-    "correo": "asesor@rutacar.test",
+-    "nombre": "Asesor Prueba",
+-    "rol": "asesor",
+-    "salt": "5436098dd06409dc306d35aecbec81b4053677cdf0fd54fc",
+-    "claveHash": "4ffd4f160790cfc34eeb6f440a939b3fd170dd0b1fda3229f6dbcc17763037cc",
+-    "recuperacionSalt": "feb36ae03bb7c08bf9e850c41d3411237f46cd8b3ba061b2",
+-    "recuperacionHash": "bbdfd8d75d4464fadf610e3c75c7781653cada6bf5365f956914b5dbda8ce78b",
+-    "creado": "2026-10-16T12:00:00.000Z",
+-    "estado": "activo",
+-    "empleadoId": "empleado-asesor-demo"
+-  },
+-  {
+-    "id": "cuenta-tecnico-demo",
+-    "correo": "tecnico@rutacar.test",
+-    "nombre": "Técnico Prueba",
+-    "rol": "tecnico",
+-    "salt": "f483583e3980156e62e8c0cc9ddc474e5a59714188c766c8",
+-    "claveHash": "1734ebcfabe18097df3fcc9d7a635f494afe1d5f5d1762b849c582ffa2981ec2",
+-    "recuperacionSalt": "cd0aeeb403d2cdbe4b39e21421c8935937ed7ab12790c1b1",
+-    "recuperacionHash": "f20196f73671083b3d526aa3b3b1e39b3d194f4157357ec5cdcf48844f164fda",
+-    "creado": "2026-10-16T12:00:00.000Z",
+-    "estado": "activo",
+-    "empleadoId": "empleado-tecnico-demo"
+-  },
+-  {
+-    "id": "cuenta-cliente-demo",
+-    "correo": "cliente@rutacar.test",
+-    "nombre": "Cliente Prueba",
+-    "rol": "cliente",
+-    "salt": "9187958897fa58cfb53d9940efaa17ebe1196d723bac2364",
+-    "claveHash": "d4c621eb64c1667dfdeec58703302cf198d3770d7699e32e0b7aa70a5d338b35",
+-    "recuperacionSalt": "5134de70963954e32596436c533230d71e9aacf51d3b74b7",
+-    "recuperacionHash": "794bc5dc2e6cc58b4859cf3673a13068700926be985731a08824d493dabc3cb7",
+-    "creado": "2026-10-16T12:00:00.000Z",
+-    "estado": "activo",
+-    "clienteId": "cliente-demo"
+-  }
+-];
+-
++const TOKEN_KEY = 'rutacar.token';
++const PERFIL_KEY = 'rutacar.perfil';
++const EXPIRA_KEY = 'rutacar.expira';
++/** Claves de versiones anteriores, cuando el acceso y los datos vivían en el navegador. */
++const CLAVES_OBSOLETAS = ['alquiler-bd2-cuentas-locales-v3', 'alquiler-bd2-sesion-local-v3', 'bd2-rutacar-demo-v3'];
+ 
++/**
++ * Autenticación contra el backend con JWT. El token y el perfil se guardan en sessionStorage
++ * (se pierden al cerrar la pestaña). Ya no existen cuentas, claves ni códigos en el navegador.
++ */
+ @Injectable({ providedIn: 'root' })
+ export class AuthService {
+   private readonly cambio = new BehaviorSubject<number>(0);
+   readonly cambios = this.cambio.asObservable();
+-  constructor(private datos: DatosService) {}
+-
+-  get cuentas(): CuentaLocal[] {
+-    try {
+-      const guardado = localStorage.getItem(CUENTAS_KEY);
+-      if (guardado === null) { localStorage.setItem(CUENTAS_KEY, JSON.stringify(CUENTAS_DEMO)); return CUENTAS_DEMO; }
+-      const data: unknown = JSON.parse(guardado);
+-      return Array.isArray(data) ? data as CuentaLocal[] : [];
+-    } catch { return []; }
++  private perfil: Sesion | null = null;
++  private tokenActual: string | null = null;
++  private expiraEn = 0;
++
++  constructor(private api: ApiService) {
++    CLAVES_OBSOLETAS.forEach(k => { localStorage.removeItem(k); sessionStorage.removeItem(k); });
++    this.cargar();
+   }
+ 
+-  get sesion(): CuentaLocal | null {
+-    const id = sessionStorage.getItem(SESION_KEY);
+-    if (!id) { return null; }
+-    const cuenta = this.cuentas.find(item => item.id === id && item.estado === 'activo');
+-    if (!cuenta) { return null; }
+-    if (cuenta.rol === 'cliente') {
+-      const cliente = this.datos.clientes.find(item => item.id === cuenta.clienteId);
+-      return cliente?.estado === 'activo' ? cuenta : null;
+-    }
+-    if (cuenta.empleadoId) {
+-      const empleado = this.datos.empleados.find(item => item.id === cuenta.empleadoId && item.estado === 'activo');
+-      return empleado ? { ...cuenta, rol: empleado.rol } : null;
+-    }
+-    return cuenta.rol === 'administrador' ? cuenta : null;
++  /** Token vigente o null si no hay sesión o ya venció. */
++  get token(): string | null {
++    if (this.tokenActual && Date.now() >= this.expiraEn) { this.vaciar(); }
++    return this.tokenActual;
+   }
+-  get esAdmin(): boolean { return this.sesion?.rol === 'administrador'; }
++  get sesion(): Sesion | null { return this.token ? this.perfil : null; }
+   get esCliente(): boolean { return this.sesion?.rol === 'cliente'; }
+-  get existeAdministrador(): boolean { return this.cuentas.some(c => c.rol === 'administrador'); }
++  get esAdmin(): boolean { return this.sesion?.rol === 'administrador'; }
++  get esAsesor(): boolean { return this.sesion?.rol === 'asesor'; }
++  get esTecnico(): boolean { return this.sesion?.rol === 'tecnico'; }
+   tieneRol(roles: RolAcceso[]): boolean { const rol = this.sesion?.rol; return !!rol && roles.includes(rol); }
+ 
+-  private guardarCuentas(cuentas: CuentaLocal[]): void {
+-    try { localStorage.setItem(CUENTAS_KEY, JSON.stringify(cuentas)); this.cambio.next(this.cambio.value + 1); }
+-    catch { throw new Error('No se pudo almacenar la cuenta en este navegador.'); }
++  async iniciarSesion(correo: string, clave: string): Promise<Sesion> {
++    try { return this.abrir(await firstValueFrom(this.api.login({ correo: correo.trim(), clave }))); }
++    catch (e) { throw new Error(mensajeError(e, 'No se pudo iniciar la sesión.')); }
+   }
+ 
+-  private bytes(size = 24): Uint8Array { const array = new Uint8Array(size); crypto.getRandomValues(array); return array; }
+-  private codificar(bytes: Uint8Array): string { return Array.from(bytes).map(v => v.toString(16).padStart(2, '0')).join(''); }
+-  private decodificar(hex: string): Uint8Array { return Uint8Array.from(hex.match(/.{2}/g)?.map(v => parseInt(v, 16)) ?? []); }
+-  private async huella(valor: string, salt: string): Promise<string> {
+-    if (!globalThis.crypto?.subtle) { throw new Error('El navegador necesita un contexto seguro (localhost o HTTPS) para gestionar credenciales locales.'); }
+-    const clave = await crypto.subtle.importKey('raw', new TextEncoder().encode(valor), 'PBKDF2', false, ['deriveBits']);
+-    const bytes = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: this.decodificar(salt) as BufferSource, iterations: 150000, hash: 'SHA-256' }, clave, 256);
+-    return this.codificar(new Uint8Array(bytes));
+-  }
+-  private validarClave(clave: string): void {
+-    if (clave.length < 10 || !/[a-z]/.test(clave) || !/[A-Z]/.test(clave) || !/[0-9]/.test(clave)) {
+-      throw new Error('La contraseña debe tener al menos 10 caracteres e incluir mayúscula, minúscula y número.');
+-    }
++  /** El backend crea la cuenta y devuelve la sesión iniciada. */
++  async registrarCliente(datos: RegistroRequest): Promise<Sesion> {
++    try { return this.abrir(await firstValueFrom(this.api.registro(datos))); }
++    catch (e) { throw new Error(mensajeError(e, 'No fue posible registrar la cuenta.')); }
+   }
+-  private async cuentaBase(nombre: string, correo: string, clave: string, rol: RolAcceso, vinculo: { clienteId?: string; empleadoId?: string }): Promise<{ cuenta: CuentaLocal; codigo: string }> {
+-    this.validarClave(clave);
+-    const email = correo.trim().toLowerCase();
+-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { throw new Error('Escribe un correo electrónico válido.'); }
+-    if (this.cuentas.some(c => c.correo === email)) { throw new Error('Este correo ya tiene una cuenta registrada.'); }
+-    const salt = this.codificar(this.bytes());
+-    const recuperacionSalt = this.codificar(this.bytes());
+-    const codigo = `${this.codificar(this.bytes(6)).slice(0, 6).toUpperCase()}-${this.codificar(this.bytes(6)).slice(0, 6).toUpperCase()}`;
+-    const cuenta: CuentaLocal = {
+-      id: this.datos.nuevoId(), nombre: nombre.trim(), correo: email, rol, ...vinculo,
+-      salt, claveHash: await this.huella(clave, salt), recuperacionSalt,
+-      recuperacionHash: await this.huella(codigo, recuperacionSalt), creado: this.datos.fechaActual(), estado: 'activo'
+-    };
+-    return { cuenta, codigo };
++
++  /** Devuelve un token nuevo sin la marca de clave temporal. */
++  async cambiarClave(claveActual: string, claveNueva: string): Promise<Sesion> {
++    try { return this.abrir(await firstValueFrom(this.api.cambiarClave({ claveActual, claveNueva }))); }
++    catch (e) { throw new Error(mensajeError(e, 'No se pudo actualizar la contraseña.')); }
+   }
+ 
+-  async registrarCliente(cliente: Omit<Cliente, 'id' | 'creado'>, clave: string): Promise<string> {
+-    if (this.datos.clientes.some(c => c.correo.toLowerCase() === cliente.correo.toLowerCase() || c.documento === cliente.documento)) { throw new Error('El correo o documento ya está registrado como cliente.'); }
+-    if (this.datos.clientes.some(c => c.licencia.numero.toLowerCase() === cliente.licencia.numero.toLowerCase())) { throw new Error('El número de licencia ya existe.'); }
+-    const nuevo: Cliente = { ...cliente, id: this.datos.nuevoId(), creado: this.datos.fechaActual() };
+-    const { cuenta, codigo } = await this.cuentaBase(`${cliente.primerNombre} ${cliente.primerApellido}`, cliente.correo, clave, 'cliente', { clienteId: nuevo.id });
+-    this.datos.guardar('clientes', nuevo);
+-    try { this.guardarCuentas([...this.cuentas, cuenta]); }
+-    catch (error) { this.datos.eliminar('clientes', nuevo.id); throw error; }
+-    this.abrirSesion(cuenta.id);
+-    return codigo;
++  /** Genera una clave temporal de un solo uso (administrador, o asesor para clientes). */
++  async restablecerClave(tipo: TipoCuenta, id: number): Promise<string> {
++    try { return (await firstValueFrom(this.api.restablecerClave({ tipo, id }))).claveTemporal; }
++    catch (e) { throw new Error(mensajeError(e, 'No se pudo restablecer la contraseña.')); }
+   }
+ 
+-  async crearAccesoEmpleado(empleadoId: string, correo: string, clave: string): Promise<string> {
+-    if (!this.esAdmin) { throw new Error('Esta operación requiere un administrador.'); }
+-    const e = this.datos.empleados.find(item => item.id === empleadoId && item.estado === 'activo');
+-    if (!e) { throw new Error('Selecciona un empleado activo.'); }
+-    if (e.rol === 'administrador') { throw new Error('La cuenta del administrador es única y no se pueden crear más.'); }
+-    if (this.cuentas.some(c => c.empleadoId === empleadoId)) { throw new Error('Este empleado ya tiene acceso.'); }
+-    const { cuenta, codigo } = await this.cuentaBase(`${e.primerNombre} ${e.primerApellido}`, correo, clave, e.rol, { empleadoId });
+-    this.guardarCuentas([...this.cuentas, cuenta]);
+-    return codigo;
++  /** Vuelve a leer el perfil desde el backend. */
++  async refrescarPerfil(): Promise<void> {
++    if (!this.token) { return; }
++    try { this.guardarPerfil(await firstValueFrom(this.api.me())); }
++    catch { /* si el token ya no sirve, el interceptor cierra la sesión */ }
+   }
+ 
+-  async iniciarSesion(correo: string, clave: string): Promise<void> {
+-    const cuenta = this.cuentas.find(c => c.correo === correo.trim().toLowerCase() && c.estado === 'activo');
+-    if (!cuenta || await this.huella(clave, cuenta.salt) !== cuenta.claveHash) { throw new Error('Correo o contraseña incorrectos.'); }
+-    this.abrirSesion(cuenta.id);
+-    if (!this.sesion) { this.cerrarSesion(); throw new Error('La cuenta o su registro asociado está inactivo.'); }
++  cerrarSesion(): void { this.vaciar(); this.notificar(); }
++
++  // ---------- Internos ----------
++  private abrir(r: LoginResponse): Sesion {
++    this.tokenActual = r.token;
++    this.expiraEn = Date.now() + r.expiraEnSegundos * 1000;
++    sessionStorage.setItem(TOKEN_KEY, r.token);
++    sessionStorage.setItem(EXPIRA_KEY, String(this.expiraEn));
++    return this.guardarPerfil(r.usuario);
+   }
+ 
+-  private abrirSesion(id: string): void { sessionStorage.setItem(SESION_KEY, id); this.cambio.next(this.cambio.value + 1); }
+-  cerrarSesion(): void { sessionStorage.removeItem(SESION_KEY); this.cambio.next(this.cambio.value + 1); }
+-
+-  async recuperar(correo: string, codigo: string, nuevaClave: string): Promise<void> {
+-    this.validarClave(nuevaClave);
+-    const cuenta = this.cuentas.find(c => c.correo === correo.trim().toLowerCase());
+-    if (!cuenta || await this.huella(codigo.trim().toUpperCase(), cuenta.recuperacionSalt) !== cuenta.recuperacionHash) { throw new Error('El correo o el código de recuperación no coinciden.'); }
+-    const salt = this.codificar(this.bytes());
+-    const nuevoCodigo = this.codificar(this.bytes(12)).toUpperCase();
+-    const recuperacionSalt = this.codificar(this.bytes());
+-    const actualizada: CuentaLocal = { ...cuenta, salt, claveHash: await this.huella(nuevaClave, salt), recuperacionSalt, recuperacionHash: await this.huella(nuevoCodigo, recuperacionSalt) };
+-    this.guardarCuentas(this.cuentas.map(c => c.id === cuenta.id ? actualizada : c));
+-    this.ultimoCodigo = nuevoCodigo;
++  private guardarPerfil(p: PerfilResponse): Sesion {
++    const rol = p.rol.toLowerCase() as RolAcceso;
++    this.perfil = {
++      id: p.id, tipo: p.tipo, rol, nombre: p.nombre, correo: p.correo, estado: p.estado, debeCambiarClave: p.debeCambiarClave,
++      clienteId: p.tipo === 'CLIENTE' ? String(p.id) : undefined,
++      empleadoId: p.tipo === 'EMPLEADO' ? String(p.id) : undefined
++    };
++    sessionStorage.setItem(PERFIL_KEY, JSON.stringify(this.perfil));
++    this.notificar();
++    return this.perfil;
+   }
+-  ultimoCodigo = '';
+-
+-  async cambiarClave(actual: string, nueva: string): Promise<string> {
+-    const cuenta = this.sesion;
+-    if (!cuenta || await this.huella(actual, cuenta.salt) !== cuenta.claveHash) { throw new Error('La contraseña actual es incorrecta.'); }
+-    this.validarClave(nueva);
+-    const salt = this.codificar(this.bytes());
+-    const codigo = this.codificar(this.bytes(12)).toUpperCase();
+-    const recuperacionSalt = this.codificar(this.bytes());
+-    const actualizada = { ...cuenta, salt, claveHash: await this.huella(nueva, salt), recuperacionSalt, recuperacionHash: await this.huella(codigo, recuperacionSalt) };
+-    this.guardarCuentas(this.cuentas.map(c => c.id === cuenta.id ? actualizada : c));
+-    return codigo;
++
++  private cargar(): void {
++    const token = sessionStorage.getItem(TOKEN_KEY);
++    const perfil = sessionStorage.getItem(PERFIL_KEY);
++    const expira = Number(sessionStorage.getItem(EXPIRA_KEY));
++    if (!token || !perfil || !expira || Date.now() >= expira) { this.vaciar(); return; }
++    try { this.perfil = JSON.parse(perfil) as Sesion; this.tokenActual = token; this.expiraEn = expira; }
++    catch { this.vaciar(); }
+   }
+-  cambiarEstado(id: string): void {
+-    if (!this.esAdmin) { throw new Error('Se requiere permiso de administrador.'); }
+-    const cuenta = this.cuentas.find(c => c.id === id);
+-    if (!cuenta) { throw new Error('Cuenta inexistente.'); }
+-    if (cuenta.rol === 'administrador') { throw new Error('La única cuenta de administrador no puede desactivarse.'); }
+-    if (cuenta.id === this.sesion?.id) { throw new Error('No puedes desactivar tu propia sesión.'); }
+-    this.guardarCuentas(this.cuentas.map(c => c.id === id ? { ...c, estado: c.estado === 'activo' ? 'inactivo' : 'activo' } : c));
++
++  private vaciar(): void {
++    this.tokenActual = null; this.perfil = null; this.expiraEn = 0;
++    [TOKEN_KEY, PERFIL_KEY, EXPIRA_KEY].forEach(k => sessionStorage.removeItem(k));
+   }
++
++  private notificar(): void { this.cambio.next(this.cambio.value + 1); }
+ }
+diff --git a/src/app/core/datos.service.ts b/src/app/core/datos.service.ts
+index 391eda9..53c9b09 100644
+--- a/src/app/core/datos.service.ts
++++ b/src/app/core/datos.service.ts
+@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
+ import { BehaviorSubject } from 'rxjs';
+ import { Categoria, Cliente, Colecciones, Empleado, Inspeccion, Reserva, Sede, Seguro, Tabla, Vehiculo } from './models';
+ 
+-const CLAVE = 'bd2-rutacar-demo-v3';
++const CLAVE = 'rutacar-datos-locales-v4';
+ const DEMO_DATE = '2026-10-16T12:00:00.000Z';
+ const VACIO: Colecciones = {
+   categorias: [
+@@ -18,18 +18,13 @@ const VACIO: Colecciones = {
+     { id: 'seguro-robo-demo', creado: DEMO_DATE, nombre: 'Protección contra robo', descripcion: 'Opción de prueba; cobertura sujeta a definición del backend', costoDiario: 22000, estado: 'activo' },
+     { id: 'seguro-terceros-demo', creado: DEMO_DATE, nombre: 'Protección a terceros', descripcion: 'Opción de prueba; cobertura sujeta a definición del backend', costoDiario: 18000, estado: 'activo' }
+   ],
+-  clientes: [
+-    { id: 'cliente-demo', creado: DEMO_DATE, documento: 'DEMO-1001', primerNombre: 'Cliente', segundoNombre: '', primerApellido: 'Prueba', segundoApellido: '', correo: 'cliente@rutacar.test', telefono: '3000000000', estado: 'activo', licencia: { numero: 'LIC-DEMO-1001', categoria: 'B1', expedicion: '2024-01-15', vencimiento: '2032-01-15' } }
+-  ],
++  clientes: [],
+   vehiculos: [
+     { id: 'veh-sedan-demo', creado: DEMO_DATE, placa: 'DEMO01', marca: 'Sedán de prueba', modeloAnio: 2025, kilometraje: 14000, color: 'Plata', categoriaId: 'cat-sedan-demo', sedeId: 'sede-bogota-demo', estado: 'disponible' },
+     { id: 'veh-suv-demo', creado: DEMO_DATE, placa: 'DEMO02', marca: 'SUV de prueba', modeloAnio: 2025, kilometraje: 9500, color: 'Negro', categoriaId: 'cat-suv-demo', sedeId: 'sede-bogota-demo', estado: 'disponible' },
+     { id: 'veh-compacto-demo', creado: DEMO_DATE, placa: 'DEMO03', marca: 'Compacto de prueba', modeloAnio: 2024, kilometraje: 21500, color: 'Blanco', categoriaId: 'cat-compacto-demo', sedeId: 'sede-medellin-demo', estado: 'disponible' }
+   ],
+-  empleados: [
+-    { id: 'empleado-asesor-demo', creado: DEMO_DATE, documento: 'EMP-DEMO-01', primerNombre: 'Asesor', primerApellido: 'Prueba', fechaContratacion: '2026-01-20', sedeId: 'sede-bogota-demo', rol: 'asesor', estado: 'activo', mostradorAsignado: 'Punto de atención A' },
+-    { id: 'empleado-tecnico-demo', creado: DEMO_DATE, documento: 'EMP-DEMO-02', primerNombre: 'Técnico', primerApellido: 'Prueba', fechaContratacion: '2026-01-20', sedeId: 'sede-bogota-demo', rol: 'tecnico', estado: 'activo', especialidad: 'Inspección de vehículos' }
+-  ],
++  empleados: [],
+   reservas: [], inspecciones: []
+ };
+ 
+diff --git a/src/app/core/rol.guard.ts b/src/app/core/rol.guard.ts
+index 1cb11f2..a9677eb 100644
+--- a/src/app/core/rol.guard.ts
++++ b/src/app/core/rol.guard.ts
+@@ -6,8 +6,11 @@ import { AuthService, RolAcceso } from './auth.service';
+ export class RolGuard implements CanActivate {
+   constructor(private auth: AuthService, private router: Router) {}
+   canActivate(ruta: ActivatedRouteSnapshot, estado: RouterStateSnapshot): boolean | UrlTree {
++    const sesion = this.auth.sesion;
++    if (!sesion) { return this.router.createUrlTree(['/acceso'], { queryParams: { volver: estado.url } }); }
++    // Con clave temporal el backend solo deja cambiar la clave: se lleva al perfil hasta que la cambie.
++    if (sesion.debeCambiarClave && estado.url.split('?')[0] !== '/perfil') { return this.router.createUrlTree(['/perfil']); }
+     const roles = ruta.data['roles'] as RolAcceso[] | undefined;
+-    if (!this.auth.sesion) { return this.router.createUrlTree(['/acceso'], { queryParams: { volver: estado.url } }); }
+     if (roles?.length && !this.auth.tieneRol(roles)) { return this.router.createUrlTree(['/sin-permiso']); }
+     return true;
+   }
