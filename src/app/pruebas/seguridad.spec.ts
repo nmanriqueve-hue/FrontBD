@@ -61,13 +61,21 @@ describe('AuthService', () => {
     ['alquiler-bd2-cuentas-locales-v3', 'bd2-rutacar-demo-v3', 'rutacar-datos-locales-v4'].forEach(k => expect(localStorage.getItem(k)).toBeNull());
   });
 
-  it('restablecerClave devuelve la clave temporal que genera el backend', async () => {
-    sesionComo('administrador', 'EMPLEADO', 1); const http = configurar(); const auth = TestBed.inject(AuthService);
-    const p = auth.restablecerClave('CLIENTE', 9);
-    const req = http.expectOne(`${API}/auth/restablecer-clave`);
-    expect(req.request.body).toEqual({ tipo: 'CLIENTE', id: 9 });
-    req.flush({ claveTemporal: 'Tmp-Abc123xyz' });
-    expect(await p).toBe('Tmp-Abc123xyz');
+  it('recuperarClave envía correo en minúsculas, documento y clave nueva sin necesitar sesión', async () => {
+    const http = configurar(); const auth = TestBed.inject(AuthService);
+    const p = auth.recuperarClave('  Ana@Correo.com ', ' 1020304050 ', 'NuevaClave123');
+    const req = http.expectOne(`${API}/auth/recuperar-clave`);
+    expect(req.request.body).toEqual({ correo: 'ana@correo.com', numeroDocumento: '1020304050', claveNueva: 'NuevaClave123' });
+    expect(req.request.headers.has('Authorization')).toBe(false);
+    req.flush(null, { status: 204, statusText: 'No Content' });
+    await p;
+  });
+
+  it('recuperarClave muestra el mensaje del backend cuando los datos no coinciden', async () => {
+    const http = configurar(); const auth = TestBed.inject(AuthService);
+    const p = auth.recuperarClave('ana@correo.com', '1', 'NuevaClave123');
+    http.expectOne(`${API}/auth/recuperar-clave`).flush({ mensaje: 'El correo y el número de documento no coinciden con ninguna cuenta' }, { status: 400, statusText: 'Bad Request' });
+    await expect(p).rejects.toThrow('no coinciden');
   });
 });
 

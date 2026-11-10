@@ -10,9 +10,12 @@ export class AccesoComponent {
   error = '';
   cargando = false;
   visible = false;
+  /** true cuando llega desde la recuperación de contraseña. */
+  recuperada = false;
   readonly validar = validarControl;
   constructor(fb: FormBuilder, public auth: AuthService, private router: Router, private route: ActivatedRoute) {
     this.form = fb.group({ correo: ['', [Validators.required, Validators.email]], clave: ['', Validators.required] });
+    this.recuperada = this.route.snapshot.queryParamMap.has('recuperada');
   }
   async ingresar(): Promise<void> {
     this.form.markAllAsTouched(); this.error = '';
