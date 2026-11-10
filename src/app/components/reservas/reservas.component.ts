@@ -115,7 +115,7 @@ export class ReservasComponent implements OnInit {
     void this.cotizar();
   }
   seguroMarcado(id: number): boolean { return this.segurosSeleccionados.includes(id); }
-  /** El costo lo calcula la base de datos; aquí solo se muestra. */
+  /** El costo lo calcula el sistema; aquí solo se muestra. */
   async cotizar(): Promise<void> {
     const v = this.form.getRawValue();
     const turno = ++this.turnoCotizacion;

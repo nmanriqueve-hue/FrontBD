@@ -15,9 +15,9 @@
         </div>
     </div>
     <div class="payment-steps">
-        <div><span>01</span><strong>Iniciar pago</strong><small>La API recibe la solicitud de cobro.</small></div>
-        <div><span>02</span><strong>Verificar aprobación</strong><small>El backend comprueba la respuesta del banco.</small></div>
-        <div><span>03</span><strong>Confirmar o revertir</strong><small>COMMIT al aprobar; ROLLBACK al fallar.</small></div>
+        <div><span>01</span><strong>Iniciar pago</strong><small>Se registra el cobro de la reserva.</small></div>
+        <div><span>02</span><strong>Verificar aprobación</strong><small>Se revisa la respuesta del banco.</small></div>
+        <div><span>03</span><strong>Confirmar o revertir</strong><small>Si se aprueba, la reserva queda confirmada; si falla, se cancela.</small></div>
     </div>
 </div>
 <div class="form-success" *ngIf="exito" role="status">{{exito}}</div>
