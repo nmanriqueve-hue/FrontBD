@@ -1,87 +1,208 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { DatosService } from '../../core/datos.service';
-import { Reserva, Vehiculo } from '../../core/models';
+import { firstValueFrom } from 'rxjs';
+import { ApiService, mensajeError } from '../../core/api.service';
+import {
+  ClienteResponse, CotizacionResponse, EmpleadoResponse, EstadoReserva, PenalizacionResponse, ReservaResponse,
+  ReservaResumen, SedeResponse, SeguroResponse, VehiculoResponse
+} from '../../core/api-models';
 import { AuthService } from '../../core/auth.service';
+import { fechaIso, METODOS_PAGO } from '../../core/formato';
 import { fechasCoherentes, validarControl } from '../../core/validadores';
 
 @Component({ selector: 'app-reservas', standalone: false, templateUrl: './reservas.component.html', styleUrl: './reservas.component.css' })
 export class ReservasComponent implements OnInit {
   form: FormGroup;
   verFormulario = false;
-  edicion = '';
   error = '';
   exito = '';
   guardando = false;
-  filtro = '';
-  segurosSeleccionados: string[] = [];
+  cargando = false;
+  filtro: EstadoReserva | '' = '';
+  reservas: ReservaResumen[] = [];
+  detalle: ReservaResponse | null = null;
+  clientes: ClienteResponse[] = [];
+  sedes: SedeResponse[] = [];
+  seguros: SeguroResponse[] = [];
+  vehiculos: VehiculoResponse[] = [];
+  asesores: EmpleadoResponse[] = [];
+  penalizaciones: PenalizacionResponse[] = [];
+  segurosSeleccionados: number[] = [];
+  cotizacion: CotizacionResponse | null = null;
+  asesorElegido: number | '' = '';
+  pago: { monto: number; metodo: string; resultado: 'APROBADO' | 'RECHAZADO' } = { monto: 0, metodo: 'TARJETA', resultado: 'APROBADO' };
+  readonly metodos = METODOS_PAGO;
   readonly validar = validarControl;
+  readonly hoy = fechaIso();
+  private turnoCotizacion = 0;
 
-  constructor(public datos: DatosService, fb: FormBuilder, private ruta: ActivatedRoute, public auth: AuthService) {
-    this.form = fb.group({ clienteId: ['', Validators.required], vehiculoId: ['', Validators.required], fechaInicio: ['', Validators.required], fechaFin: ['', Validators.required], sedeEntregaId: ['', Validators.required], sedeRecibeId: ['', Validators.required] }, { validators: fechasCoherentes('fechaInicio', 'fechaFin') });
+  constructor(fb: FormBuilder, private api: ApiService, private ruta: ActivatedRoute, public auth: AuthService) {
+    this.form = fb.group({
+      clienteId: [null, Validators.required], vehiculoId: [null, Validators.required],
+      fechaInicio: ['', Validators.required], fechaFin: ['', Validators.required], sedeRecibeId: [null, Validators.required]
+    }, { validators: fechasCoherentes('fechaInicio', 'fechaFin') });
   }
-  ngOnInit(): void {
-    this.ruta.queryParamMap.subscribe(parametros => {
-      const id = parametros.get('vehiculo');
-      if (id && this.datos.vehiculos.some(v => v.id === id)) {
-        this.nueva(id);
-        this.form.patchValue({ fechaInicio: parametros.get('inicio') || '', fechaFin: parametros.get('fin') || '', ...(parametros.get('sedeDevolucion') ? { sedeRecibeId: parametros.get('sedeDevolucion') } : {}) });
-      }
+
+  get puedeOperar(): boolean { return this.auth.tieneRol(['administrador', 'asesor']); }
+  get vehiculoElegido(): VehiculoResponse | undefined { const id = this.form.get('vehiculoId')?.value; return this.vehiculos.find(v => v.idVehiculo === id); }
+  get puedePagar(): boolean { const d = this.detalle; return !!d && d.saldoPendiente > 0 && (d.estadoReserva === 'PENDIENTE' || d.estadoReserva === 'CONFIRMADA'); }
+  get puedeCancelar(): boolean { const e = this.detalle?.estadoReserva; return e === 'PENDIENTE' || e === 'CONFIRMADA'; }
+  get puedeIniciar(): boolean { return this.puedeOperar && this.detalle?.estadoReserva === 'CONFIRMADA'; }
+  get puedeFinalizar(): boolean { return this.puedeOperar && this.detalle?.estadoReserva === 'EN_CURSO'; }
+
+  async ngOnInit(): Promise<void> {
+    this.cargando = true;
+    try {
+      const [sedes, seguros] = await Promise.all([firstValueFrom(this.api.sedes()), firstValueFrom(this.api.seguros())]);
+      this.sedes = sedes; this.seguros = seguros;
+      if (this.puedeOperar) { this.clientes = (await firstValueFrom(this.api.clientes({ size: 100 }))).content; }
+    } catch (e) { this.error = mensajeError(e, 'No se pudieron cargar los datos de apoyo.'); }
+    await this.cargarReservas();
+    await this.cargarPenalizaciones();
+    this.cargando = false;
+    this.ruta.queryParamMap.subscribe(p => {
+      const vehiculo = p.get('vehiculo');
+      if (vehiculo) { void this.abrirDesdeCatalogo(Number(vehiculo), p.get('inicio') || '', p.get('fin') || '', p.get('sedeDevolucion')); }
     });
   }
-  get candidatos(): Vehiculo[] { return this.datos.vehiculos.filter(v => v.estado === 'disponible' && this.datos.categorias.some(c => c.id === v.categoriaId && c.estado === 'activo') && this.datos.sedes.some(s => s.id === v.sedeId && s.estado === 'activo')); }
-  get segurosActivos() { return this.datos.seguros.filter(s => s.estado === 'activo'); }
-  get cotizacion() { const v = this.form.getRawValue(); return this.datos.cotizar(v.vehiculoId, v.fechaInicio, v.fechaFin, this.segurosSeleccionados); }
-  get filtrados(): Reserva[] { return this.datos.reservas.filter(r => (!this.auth.esCliente || r.clienteId === this.auth.sesion?.clienteId) && (!this.filtro || r.estado === this.filtro)); }
 
-  nueva(vehiculoId = ''): void {
-    this.cerrar(); this.verFormulario = true;
-    if (this.auth.esCliente) { this.form.patchValue({ clienteId: this.auth.sesion?.clienteId || '' }); this.form.get('clienteId')?.disable(); }
-    if (vehiculoId) { this.form.patchValue({ vehiculoId }); this.cambioVehiculo(); }
+  async cargarReservas(): Promise<void> {
+    try {
+      const pagina = await firstValueFrom(this.api.reservas({ idCliente: this.auth.esCliente ? this.auth.sesion?.id : null, estado: this.filtro || null, size: 100 }));
+      this.reservas = pagina.content;
+    } catch (e) { this.error = mensajeError(e, 'No se pudieron cargar las reservas.'); }
   }
-  cerrar(): void { this.verFormulario = false; this.edicion = ''; this.error = ''; this.segurosSeleccionados = []; this.form.get('clienteId')?.enable(); this.form.reset({ clienteId: '', vehiculoId: '', fechaInicio: '', fechaFin: '', sedeEntregaId: '', sedeRecibeId: '' }); }
+  private async cargarPenalizaciones(): Promise<void> {
+    const sesion = this.auth.sesion;
+    if (!sesion || !this.auth.esCliente) { return; }
+    try { this.penalizaciones = await firstValueFrom(this.api.penalizacionesDeCliente(sesion.id)); } catch { this.penalizaciones = []; }
+  }
+
+  // ---------- Nueva reserva ----------
+  nueva(): void {
+    this.cerrar(); this.cerrarDetalle(); this.verFormulario = true; this.exito = '';
+    if (this.auth.esCliente) { this.form.patchValue({ clienteId: this.auth.sesion?.id }); this.form.get('clienteId')?.disable(); }
+  }
+  cerrar(): void {
+    this.verFormulario = false; this.error = ''; this.segurosSeleccionados = []; this.vehiculos = []; this.cotizacion = null;
+    this.form.get('clienteId')?.enable();
+    this.form.reset({ clienteId: null, vehiculoId: null, fechaInicio: '', fechaFin: '', sedeRecibeId: null });
+  }
+  private async abrirDesdeCatalogo(idVehiculo: number, inicio: string, fin: string, sedeDevolucion: string | null): Promise<void> {
+    this.nueva();
+    this.form.patchValue({ fechaInicio: inicio, fechaFin: fin });
+    await this.cargarVehiculos();
+    if (!this.vehiculos.some(v => v.idVehiculo === idVehiculo)) { this.error = 'Ese vehículo ya no está disponible en las fechas elegidas. Elige otro.'; return; }
+    this.form.patchValue({ vehiculoId: idVehiculo, ...(sedeDevolucion ? { sedeRecibeId: Number(sedeDevolucion) } : {}) });
+    this.cambioVehiculo();
+  }
+  async cambioFechas(): Promise<void> { await this.cargarVehiculos(); await this.cotizar(); }
+  private async cargarVehiculos(): Promise<void> {
+    const v = this.form.getRawValue();
+    if (!v.fechaInicio || !v.fechaFin || v.fechaInicio >= v.fechaFin) { this.vehiculos = []; return; }
+    try { this.vehiculos = await firstValueFrom(this.api.vehiculosDisponibles({ fechaInicio: v.fechaInicio, fechaFin: v.fechaFin })); }
+    catch (e) { this.vehiculos = []; this.error = mensajeError(e, 'No se pudo consultar la disponibilidad.'); }
+    if (v.vehiculoId && !this.vehiculos.some(x => x.idVehiculo === v.vehiculoId)) { this.form.patchValue({ vehiculoId: null }); }
+  }
   cambioVehiculo(): void {
-    const v = this.datos.vehiculos.find(item => item.id === this.form.get('vehiculoId')?.value);
-    this.form.patchValue({ sedeEntregaId: v?.sedeId ?? '', sedeRecibeId: v?.sedeId ?? '' });
+    const vehiculo = this.vehiculoElegido;
+    if (vehiculo && !this.form.get('sedeRecibeId')?.value) { this.form.patchValue({ sedeRecibeId: vehiculo.idSede }); }
+    void this.cotizar();
   }
-  editar(r: Reserva): void {
-    if (this.auth.esCliente && r.clienteId !== this.auth.sesion?.clienteId) { this.error = 'No puedes acceder a la reserva de otro cliente.'; return; }
-    if (r.estado !== 'borrador') { this.error = 'Solo puedes editar pre-reservas sin cancelar.'; return; }
-    this.nueva(); this.edicion = r.id; this.segurosSeleccionados = [...r.seguroIds]; this.form.patchValue(r);
+  alternarSeguro(id: number, valor: boolean): void {
+    this.segurosSeleccionados = valor ? [...this.segurosSeleccionados, id] : this.segurosSeleccionados.filter(item => item !== id);
+    void this.cotizar();
   }
-  alternarSeguro(id: string, valor: boolean): void { this.segurosSeleccionados = valor ? [...this.segurosSeleccionados, id] : this.segurosSeleccionados.filter(item => item !== id); }
-  seguroMarcado(id: string): boolean { return this.segurosSeleccionados.includes(id); }
+  seguroMarcado(id: number): boolean { return this.segurosSeleccionados.includes(id); }
+  /** El costo lo calcula la base de datos; aquí solo se muestra. */
+  async cotizar(): Promise<void> {
+    const v = this.form.getRawValue();
+    const turno = ++this.turnoCotizacion;
+    if (!v.vehiculoId || !v.fechaInicio || !v.fechaFin || v.fechaInicio >= v.fechaFin) { this.cotizacion = null; return; }
+    try {
+      const c = await firstValueFrom(this.api.cotizar({ idVehiculo: v.vehiculoId, fechaInicio: v.fechaInicio, fechaFin: v.fechaFin, idsSeguros: this.segurosSeleccionados }));
+      if (turno === this.turnoCotizacion) { this.cotizacion = c; }
+    } catch { if (turno === this.turnoCotizacion) { this.cotizacion = null; } }
+  }
 
-  guardar(): void {
+  async guardar(): Promise<void> {
     this.form.markAllAsTouched(); this.error = ''; this.exito = '';
     if (this.guardando) { return; }
-    if (this.form.invalid) { this.error = this.form.hasError('fechas') ? 'La fecha de devolución debe ser posterior a la de recogida.' : 'Completa todos los datos de la pre-reserva.'; return; }
+    if (this.form.invalid) { this.error = this.form.hasError('fechas') ? 'La fecha de devolución debe ser posterior a la de recogida.' : 'Completa todos los datos de la reserva.'; return; }
     const v = this.form.getRawValue();
-    if (this.auth.esCliente && v.clienteId !== this.auth.sesion?.clienteId) { this.error = 'Solo puedes preparar pre-reservas para tu propia cuenta.'; return; }
-    if (this.edicion) { const existente = this.datos.reservas.find(r => r.id === this.edicion); if (!existente || (this.auth.esCliente && existente.clienteId !== v.clienteId)) { this.error = 'No puedes modificar esta pre-reserva.'; return; } }
-    if (new Date(v.fechaInicio).getTime() < Date.now()) { this.error = 'La recogida debe programarse para una fecha y hora futuras.'; return; }
-    const cliente = this.datos.clientes.find(c => c.id === v.clienteId);
-    if (!cliente || cliente.estado !== 'activo') { this.error = 'Selecciona un cliente activo y no bloqueado.'; return; }
-    if (cliente.licencia.vencimiento < v.fechaInicio.slice(0, 10) || cliente.licencia.vencimiento < v.fechaFin.slice(0, 10)) { this.error = 'La licencia debe estar vigente durante todo el período de alquiler.'; return; }
-    const vehiculo = this.candidatos.find(item => item.id === v.vehiculoId);
-    if (!vehiculo) { this.error = 'Este vehículo no está disponible en el inventario local.'; return; }
-    if (vehiculo.sedeId !== v.sedeEntregaId) { this.error = 'La sede de recogida debe ser la sede actual del vehículo.'; return; }
-    if (!this.datos.sedes.some(s => s.id === v.sedeRecibeId && s.estado === 'activo')) { this.error = 'La sede de devolución debe estar activa.'; return; }
-    const cruce = this.datos.tieneCruce(v.vehiculoId, v.clienteId, v.fechaInicio, v.fechaFin, this.edicion);
-    if (cruce) { this.error = cruce; return; }
-    const estimado = this.cotizacion;
-    if (estimado.dias < 1) { this.error = 'El intervalo de alquiler debe ser mayor que cero.'; return; }
-    const anterior = this.datos.reservas.find(r => r.id === this.edicion);
-    const registro: Reserva = { ...v, id: this.edicion || this.datos.nuevoId(), creado: anterior?.creado ?? this.datos.fechaActual(), seguroIds: [...this.segurosSeleccionados], costoBase: estimado.base, costoSeguros: estimado.seguros, costoEstimado: estimado.total, estado: 'borrador' };
+    const vehiculo = this.vehiculoElegido;
+    if (v.fechaInicio < this.hoy) { this.error = 'La recogida debe ser hoy o una fecha futura.'; return; }
+    if (!vehiculo) { this.error = 'Elige un vehículo disponible para esas fechas.'; return; }
     this.guardando = true;
-    try { this.datos.guardar('reservas', registro); this.cerrar(); this.exito = 'Pre-reserva guardada localmente. No está confirmada ni pagada.'; }
-    catch (e) { this.error = e instanceof Error ? e.message : 'No se pudo guardar la pre-reserva.'; }
+    try {
+      const creada = await firstValueFrom(this.api.crearReserva({
+        idCliente: v.clienteId, idVehiculo: v.vehiculoId, idAsesor: this.auth.esAsesor ? this.auth.sesion?.id : undefined,
+        idSedeEntrega: vehiculo.idSede, idSedeRecibe: v.sedeRecibeId, fechaInicio: v.fechaInicio, fechaFin: v.fechaFin, idsSeguros: [...this.segurosSeleccionados]
+      }));
+      this.cerrar();
+      await this.cargarReservas();
+      this.abrirDetalle(creada);
+      this.exito = 'Reserva creada. Queda pendiente y se confirma cuando el pago sea aprobado.';
+    } catch (e) { this.error = mensajeError(e, 'No se pudo crear la reserva.'); }
     finally { this.guardando = false; }
   }
-  cancelarReserva(r: Reserva): void {
-    if ((this.auth.esCliente && r.clienteId !== this.auth.sesion?.clienteId) || r.estado === 'cancelada' || !confirm('¿Cancelar esta pre-reserva local? Esta acción conservará el historial.')) { return; }
-    try { this.datos.guardar('reservas', { ...r, estado: 'cancelada' }); this.exito = 'Pre-reserva cancelada localmente.'; }
-    catch (e) { this.error = e instanceof Error ? e.message : 'No se pudo cancelar.'; }
+
+  // ---------- Detalle, pago y operación ----------
+  async verDetalle(r: ReservaResumen): Promise<void> {
+    this.error = ''; this.exito = ''; this.verFormulario = false;
+    try { this.abrirDetalle(await firstValueFrom(this.api.reserva(r.idReserva))); }
+    catch (e) { this.error = mensajeError(e, 'No se pudo cargar la reserva.'); }
+  }
+  private abrirDetalle(r: ReservaResponse): void {
+    this.detalle = r; this.pago = { monto: r.saldoPendiente, metodo: 'TARJETA', resultado: 'APROBADO' };
+    if (this.auth.esAdmin && !this.asesores.length) { void this.cargarAsesores(); }
+  }
+  private async cargarAsesores(): Promise<void> {
+    try { this.asesores = await firstValueFrom(this.api.empleados({ tipo: 'ASESOR' })); } catch { this.asesores = []; }
+  }
+  cerrarDetalle(): void { this.detalle = null; }
+
+  private async actualizar(r: ReservaResponse, mensaje: string): Promise<void> {
+    this.abrirDetalle(r); this.exito = mensaje; await this.cargarReservas();
+  }
+  async pagar(): Promise<void> {
+    const d = this.detalle;
+    if (!d || this.guardando) { return; }
+    this.error = ''; this.exito = '';
+    const monto = Number(this.pago.monto);
+    if (!(monto > 0) || monto > d.saldoPendiente) { this.error = 'El monto debe ser mayor que cero y no superar el saldo pendiente.'; return; }
+    this.guardando = true;
+    try {
+      const r = await firstValueFrom(this.api.registrarPago(d.idReserva, { monto, metodoPago: this.pago.metodo, estado: this.pago.resultado }));
+      let mensaje: string;
+      if (this.pago.resultado === 'RECHAZADO') { mensaje = r.estadoReserva === 'CANCELADA' ? 'El banco rechazó el pago: la pre-reserva se canceló y el vehículo quedó libre.' : 'El banco rechazó el pago.'; }
+      else { mensaje = r.saldoPendiente === 0 ? 'Pago aprobado: la reserva quedó confirmada.' : 'Pago aprobado. Queda un saldo pendiente.'; }
+      await this.actualizar(r, mensaje);
+    } catch (e) { this.error = mensajeError(e, 'No se pudo registrar el pago.'); }
+    finally { this.guardando = false; }
+  }
+  async cancelar(): Promise<void> {
+    const d = this.detalle;
+    if (!d || !confirm('¿Cancelar esta reserva? Los pagos aprobados se reembolsan.')) { return; }
+    this.error = ''; this.exito = '';
+    try { await this.actualizar(await firstValueFrom(this.api.cancelarReserva(d.idReserva)), 'Reserva cancelada.'); }
+    catch (e) { this.error = mensajeError(e, 'No se pudo cancelar la reserva.'); }
+  }
+  async iniciar(): Promise<void> {
+    const d = this.detalle;
+    if (!d) { return; }
+    this.error = ''; this.exito = '';
+    const idAsesor = this.auth.esAsesor ? this.auth.sesion?.id : Number(this.asesorElegido);
+    if (!idAsesor) { this.error = 'Elige el asesor que entrega el vehículo.'; return; }
+    try { await this.actualizar(await firstValueFrom(this.api.iniciarReserva(d.idReserva, idAsesor)), 'Entrega registrada: el alquiler está en curso.'); }
+    catch (e) { this.error = mensajeError(e, 'No se pudo iniciar el alquiler.'); }
+  }
+  async finalizar(): Promise<void> {
+    const d = this.detalle;
+    if (!d) { return; }
+    this.error = ''; this.exito = '';
+    try { await this.actualizar(await firstValueFrom(this.api.finalizarReserva(d.idReserva)), 'Devolución registrada: el alquiler finalizó.'); }
+    catch (e) { this.error = mensajeError(e, 'No se pudo finalizar el alquiler.'); }
   }
 }
