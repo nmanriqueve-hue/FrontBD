@@ -20,7 +20,6 @@ import { ReportesComponent } from './components/reportes/reportes.component';
 import { AccesoComponent } from './components/acceso/acceso.component';
 import { RegistroComponent } from './components/registro/registro.component';
 import { RecuperacionComponent } from './components/recuperacion/recuperacion.component';
-import { CuentasComponent } from './components/cuentas/cuentas.component';
 import { PerfilComponent } from './components/perfil/perfil.component';
 import { SinPermisoComponent } from './components/sin-permiso/sin-permiso.component';
 
@@ -29,7 +28,7 @@ registerLocaleData(localeEsCo);
 @NgModule({
   declarations: [AppComponent, InicioComponent, CatalogoComponent, ClientesComponent, InventarioComponent,
     ConfiguracionComponent, EmpleadosComponent, ReservasComponent, PagosComponent, InspeccionesComponent,
-    ReportesComponent, AccesoComponent, RegistroComponent, RecuperacionComponent, CuentasComponent,
+    ReportesComponent, AccesoComponent, RegistroComponent, RecuperacionComponent,
     PerfilComponent, SinPermisoComponent],
   imports: [BrowserModule, FormsModule, ReactiveFormsModule, AppRoutingModule],
   providers: [{ provide: LOCALE_ID, useValue: 'es-CO' }, provideHttpClient(withInterceptors([authInterceptor]))],

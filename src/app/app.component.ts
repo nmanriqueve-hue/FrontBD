@@ -18,9 +18,8 @@ export class AppComponent {
     { titulo: 'Vehículos / flota', ruta: '/flota', codigo: '07', roles: ['administrador'] },
     { titulo: 'Sedes y tarifas', ruta: '/catalogos', codigo: '08', roles: ['administrador'] },
     { titulo: 'Empleados', ruta: '/empleados', codigo: '09', roles: ['administrador'] },
-    { titulo: 'Cuentas y permisos', ruta: '/cuentas', codigo: '10', roles: ['administrador'] },
-    { titulo: 'Reportes', ruta: '/reportes', codigo: '11', roles: ['administrador', 'tecnico'] },
-    { titulo: 'Mi perfil', ruta: '/perfil', codigo: '12' }
+    { titulo: 'Reportes', ruta: '/reportes', codigo: '10', roles: ['administrador', 'tecnico'] },
+    { titulo: 'Mi perfil', ruta: '/perfil', codigo: '11' }
   ];
   constructor(public auth: AuthService, private router: Router) {}
   get iniciales(): string { return (this.auth.sesion?.nombre || 'RC').split(' ').slice(0, 2).map(n => n.charAt(0)).join('').toUpperCase(); }
