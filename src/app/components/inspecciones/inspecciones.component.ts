@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService, mensajeError } from '../../core/api.service';
 import { DanoDTO, InspeccionResponse, NivelCombustible, PiezaDTO, ReservaResumen, SeveridadDano, TipoInspeccion, VehiculoResponse } from '../../core/api-models';
 import { AuthService } from '../../core/auth.service';
-import { validarControl } from '../../core/validadores';
+import { validarControl, resumenInvalidos, enfocarPrimerInvalido } from '../../core/validadores';
 
 @Component({ selector: 'app-inspecciones', standalone: false, templateUrl: './inspecciones.component.html', styleUrl: './inspecciones.component.css' })
 export class InspeccionesComponent implements OnInit, OnDestroy {
@@ -129,7 +129,7 @@ export class InspeccionesComponent implements OnInit, OnDestroy {
   async guardar(): Promise<void> {
     this.form.markAllAsTouched(); this.error = ''; this.exito = '';
     if (this.guardando || this.vehiculoId === '') { return; }
-    if (this.form.invalid) { this.error = 'Completa el combustible y el kilometraje de la inspección.'; return; }
+    if (this.form.invalid) { this.error = resumenInvalidos(this.form); enfocarPrimerInvalido(); return; }
     const v = this.form.getRawValue();
     if (!this.edicion && v.tipo !== 'MANTENIMIENTO' && !v.idReserva) { this.error = 'Selecciona la reserva a la que pertenece la inspección.'; return; }
     this.guardando = true;

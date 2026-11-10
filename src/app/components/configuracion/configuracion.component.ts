@@ -3,7 +3,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, mensajeError } from '../../core/api.service';
 import { CategoriaResponse, EstadoCatalogo, SedeResponse, SeguroResponse } from '../../core/api-models';
-import { validarControl } from '../../core/validadores';
+import { validarControl, resumenInvalidos, enfocarPrimerInvalido } from '../../core/validadores';
 
 type Catalogo = 'categorias' | 'sedes' | 'seguros';
 
@@ -34,7 +34,7 @@ export class ConfiguracionComponent implements OnInit {
   private crearFormulario(tipo: Catalogo): FormGroup {
     if (tipo === 'categorias') { return this.fb.group({ nombre: ['', [Validators.required, Validators.maxLength(50)]], tarifaDiaria: [null, [Validators.required, Validators.min(1)]], capacidadPasajeros: [null, [Validators.required, Validators.min(1), Validators.max(100)]], tipoTransmision: ['', Validators.required] }); }
     if (tipo === 'sedes') { return this.fb.group({ nombre: ['', [Validators.required, Validators.maxLength(100)]], ciudad: ['', [Validators.required, Validators.maxLength(50)]], direccion: ['', [Validators.required, Validators.maxLength(150)]], capacidadEstacionamiento: [null, [Validators.required, Validators.min(1)]] }); }
-    return this.fb.group({ nombre: ['', [Validators.required, Validators.maxLength(100)]], descripcion: ['', Validators.maxLength(255)], costoDiario: [null, [Validators.required, Validators.min(0)]] });
+    return this.fb.group({ nombre: ['', [Validators.required, Validators.maxLength(100)]], descripcion: ['', Validators.maxLength(200)], costoDiario: [null, [Validators.required, Validators.min(0)]] });
   }
 
   seleccionar(tab: Catalogo): void { this.tab = tab; this.cerrar(); this.exito = ''; }
@@ -47,7 +47,7 @@ export class ConfiguracionComponent implements OnInit {
   async guardar(): Promise<void> {
     this.form.markAllAsTouched(); this.error = ''; this.exito = '';
     if (this.guardando) { return; }
-    if (this.form.invalid) { this.error = 'Corrige los campos señalados.'; return; }
+    if (this.form.invalid) { this.error = resumenInvalidos(this.form); enfocarPrimerInvalido(); return; }
     const v = this.form.getRawValue();
     const nombre = String(v.nombre).trim();
     this.guardando = true;

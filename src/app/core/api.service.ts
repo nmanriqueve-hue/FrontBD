@@ -1,4 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { etiquetaCampo } from './validadores';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_URL } from './api-config';
@@ -25,16 +26,35 @@ function parametros(filtros: Filtros = {}): HttpParams {
   return p;
 }
 
+/** Frases t\u00e9cnicas del servidor que se muestran a la persona en un lenguaje claro. */
+const MENSAJES_TECNICOS: Record<string, string> = {
+  'Datos de entrada inv\u00e1lidos': 'Revisa los datos ingresados',
+  'Violaci\u00f3n de integridad: dato duplicado o referencia inv\u00e1lida': 'Ya existe un registro con esos datos o est\u00e1 relacionado con otra informaci\u00f3n.',
+  'Error interno del servidor': 'El servicio tuvo un problema. Int\u00e9ntalo de nuevo en unos minutos.',
+  'Autenticaci\u00f3n requerida o token inv\u00e1lido': 'Tu sesi\u00f3n expir\u00f3. Inicia sesi\u00f3n de nuevo.',
+  'No tiene permisos para esta operaci\u00f3n': 'No tienes permiso para realizar esta acci\u00f3n.',
+  'El cuerpo de la solicitud no es v\u00e1lido (JSON malformado o valor no permitido)': 'Alguno de los valores enviados no es v\u00e1lido. Revisa el formulario.'
+};
+
+function traducirMensaje(texto: string): string {
+  const limpio = texto.trim();
+  if (MENSAJES_TECNICOS[limpio]) { return MENSAJES_TECNICOS[limpio]; }
+  if (/base de datos/i.test(limpio)) { return 'El servicio no est\u00e1 disponible por el momento. Int\u00e9ntalo de nuevo en unos minutos.'; }
+  return limpio;
+}
+
 /**
- * Mensaje legible para mostrar al usuario a partir de un error HTTP del backend
+ * Mensaje legible para mostrar a la persona a partir de un error HTTP del servicio
  * (formato ApiError: mensaje + detalles por campo) o de un Error cualquiera.
  */
-export function mensajeError(e: unknown, defecto = 'No se pudo completar la operación.'): string {
+export function mensajeError(e: unknown, defecto = 'No se pudo completar la operaci\u00f3n.'): string {
   if (e instanceof HttpErrorResponse) {
-    if (e.status === 0) { return 'No hay conexión con el servidor. Verifica que el backend esté en ejecución.'; }
+    if (e.status === 0) { return 'No hay conexi\u00f3n con el servidor. Revisa tu conexi\u00f3n a internet e int\u00e9ntalo de nuevo.'; }
     const cuerpo = e.error as Partial<ApiError> | null;
-    const detalles = cuerpo?.detalles ? Object.entries(cuerpo.detalles).map(([campo, texto]) => `${campo}: ${texto}`).join('. ') : '';
-    return [cuerpo?.mensaje, detalles].filter(Boolean).join(' · ') || defecto;
+    const detalles = cuerpo?.detalles ? Object.entries(cuerpo.detalles).map(([campo, texto]) => `${etiquetaCampo(campo)}: ${texto}`).join('. ') : '';
+    const bruto = cuerpo?.mensaje;
+    const mensaje = typeof bruto === 'string' ? traducirMensaje(bruto) : '';
+    return [mensaje, detalles].filter(Boolean).join(' \u00b7 ') || defecto;
   }
   return e instanceof Error ? e.message : defecto;
 }
