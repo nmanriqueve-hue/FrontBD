@@ -61,21 +61,30 @@ describe('AuthService', () => {
     ['alquiler-bd2-cuentas-locales-v3', 'bd2-rutacar-demo-v3', 'rutacar-datos-locales-v4'].forEach(k => expect(localStorage.getItem(k)).toBeNull());
   });
 
-  it('recuperarClave envía correo en minúsculas, documento y clave nueva sin necesitar sesión', async () => {
+  it('olvideClave envía el correo en minúsculas sin necesitar sesión', async () => {
     const http = configurar(); const auth = TestBed.inject(AuthService);
-    const p = auth.recuperarClave('  Ana@Correo.com ', ' 1020304050 ', 'NuevaClave123');
-    const req = http.expectOne(`${API}/auth/recuperar-clave`);
-    expect(req.request.body).toEqual({ correo: 'ana@correo.com', numeroDocumento: '1020304050', claveNueva: 'NuevaClave123' });
+    const p = auth.olvideClave('  Ana@Correo.com ');
+    const req = http.expectOne(`${API}/auth/olvide-clave`);
+    expect(req.request.body).toEqual({ correo: 'ana@correo.com' });
     expect(req.request.headers.has('Authorization')).toBe(false);
     req.flush(null, { status: 204, statusText: 'No Content' });
     await p;
   });
 
-  it('recuperarClave muestra el mensaje del backend cuando los datos no coinciden', async () => {
+  it('restablecerClave envía el token del enlace y la clave nueva', async () => {
     const http = configurar(); const auth = TestBed.inject(AuthService);
-    const p = auth.recuperarClave('ana@correo.com', '1', 'NuevaClave123');
-    http.expectOne(`${API}/auth/recuperar-clave`).flush({ mensaje: 'El correo y el número de documento no coinciden con ninguna cuenta' }, { status: 400, statusText: 'Bad Request' });
-    await expect(p).rejects.toThrow('no coinciden');
+    const p = auth.restablecerClave('tok123', 'NuevaClave123');
+    const req = http.expectOne(`${API}/auth/restablecer-clave`);
+    expect(req.request.body).toEqual({ token: 'tok123', claveNueva: 'NuevaClave123' });
+    req.flush(null, { status: 204, statusText: 'No Content' });
+    await p;
+  });
+
+  it('restablecerClave muestra el mensaje del backend cuando el enlace venció', async () => {
+    const http = configurar(); const auth = TestBed.inject(AuthService);
+    const p = auth.restablecerClave('viejo', 'NuevaClave123');
+    http.expectOne(`${API}/auth/restablecer-clave`).flush({ mensaje: 'El enlace no es válido o ya venció. Solicita uno nuevo' }, { status: 400, statusText: 'Bad Request' });
+    await expect(p).rejects.toThrow('ya venció');
   });
 });
 

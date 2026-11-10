@@ -10,7 +10,7 @@ import {
   GastoTecnicoResponse, HistorialVehiculoResponse, IngresoSedeResponse, InspeccionRequest, InspeccionResponse,
   InspeccionUpdateRequest, LicenciaRequest, LicenciaResponse, LoginRequest, LoginResponse, PagoRequest, PagoResponse,
   Pagina, PenalizacionRequest, PenalizacionResponse, PerfilResponse, PiezaDTO, PiezaFrecuenciaResponse,
-  RegistroRequest, RecuperarClaveRequest, ReservaRequest, ReservaResponse, ReservaResumen, SedeRequest, SedeResponse,
+  OlvideClaveRequest, RegistroRequest, RestablecerClaveRequest, ReservaRequest, ReservaResponse, ReservaResumen, SedeRequest, SedeResponse,
   SeguroRankingResponse, SeguroRequest, SeguroResponse, TipoEmpleado, TipoInspeccion, VehiculoRequest, VehiculoResponse
 } from './api-models';
 
@@ -69,7 +69,8 @@ export class ApiService {
   registro(datos: RegistroRequest): Observable<LoginResponse> { return this.http.post<LoginResponse>(`${API_URL}/auth/registro`, datos); }
   me(): Observable<PerfilResponse> { return this.http.get<PerfilResponse>(`${API_URL}/auth/me`); }
   cambiarClave(datos: CambiarClaveRequest): Observable<LoginResponse> { return this.http.post<LoginResponse>(`${API_URL}/auth/cambiar-clave`, datos); }
-  recuperarClave(datos: RecuperarClaveRequest): Observable<void> { return this.http.post<void>(`${API_URL}/auth/recuperar-clave`, datos); }
+  olvideClave(datos: OlvideClaveRequest): Observable<void> { return this.http.post<void>(`${API_URL}/auth/olvide-clave`, datos); }
+  restablecerClave(datos: RestablecerClaveRequest): Observable<void> { return this.http.post<void>(`${API_URL}/auth/restablecer-clave`, datos); }
 
   // ---------- Sedes, categorías y seguros ----------
   sedes(incluirInactivos = false): Observable<SedeResponse[]> { return this.http.get<SedeResponse[]>(`${API_URL}/sedes`, { params: parametros({ incluirInactivos }) }); }
