@@ -27,31 +27,49 @@ describe('Registro de clientes', () => {
     expect(navegar).toHaveBeenCalledWith('/panel');
   });
 
-  it('formulario incompleto: indica los campos que faltan y no llama al backend', async () => {
+  it('formulario incompleto: indica los campos que faltan, sin ventanas emergentes y sin llamar al backend', async () => {
     const { c, http, alerta, navegar } = preparar();
     await c.registrar();
-    expect(alerta).toHaveBeenCalledWith(expect.stringContaining('documento'));
+    expect(c.error).toContain('N\u00famero de documento');
+    expect(c.error).toContain('Correo electr\u00f3nico');
+    expect(alerta).not.toHaveBeenCalled();
     expect(navegar).not.toHaveBeenCalled(); http.expectNone(`${API}/auth/registro`);
   });
 
-  it('error del backend: muestra el mensaje y no navega', async () => {
+  it('error del backend: muestra el mensaje, se\u00f1ala el campo y no navega', async () => {
     const { c, http, alerta, navegar } = preparar();
     c.form.setValue(VALIDO);
     const p = c.registrar();
-    http.expectOne(`${API}/auth/registro`).flush({ status: 409, mensaje: 'El correo ya está registrado', detalles: null }, { status: 409, statusText: 'Conflict' });
+    http.expectOne(`${API}/auth/registro`).flush({ status: 409, mensaje: 'El correo ya est\u00e1 registrado', detalles: null }, { status: 409, statusText: 'Conflict' });
     await p;
-    expect(alerta).toHaveBeenCalledWith(expect.stringContaining('El correo ya está registrado'));
-    expect(navegar).not.toHaveBeenCalled(); expect(c.error).toContain('correo');
+    expect(c.error).toContain('El correo ya est\u00e1 registrado');
+    expect(c.validar(c.form, 'correo')).toContain('ya est\u00e1 registrado');
+    expect(alerta).not.toHaveBeenCalled();
+    expect(navegar).not.toHaveBeenCalled(); expect(c.cargando).toBe(false);
   });
 
   it('rechaza contrasenas distintas, claves debiles y licencias vencidas sin llamar al backend', async () => {
     const { c, http, alerta } = preparar();
     c.form.setValue({ ...VALIDO, confirmar: 'OtraClave2026' }); await c.registrar();
-    expect(alerta).toHaveBeenLastCalledWith(expect.stringContaining('no coinciden'));
+    expect(c.error).toContain('no coinciden');
     c.form.setValue({ ...VALIDO, clave: 'corta', confirmar: 'corta' }); await c.registrar();
-    expect(alerta).toHaveBeenLastCalledWith(expect.stringContaining('clave'));
+    expect(c.error).toContain('Contrase\u00f1a');
+    expect(c.validar(c.form, 'clave')).toContain('10 y 72 caracteres');
     c.form.setValue({ ...VALIDO, vencimiento: '2020-02-01' }); await c.registrar();
-    expect(alerta).toHaveBeenLastCalledWith(expect.stringContaining('licencia'));
+    expect(c.error).toContain('licencia');
+    c.form.setValue({ ...VALIDO, vencimiento: '2019-01-01' }); await c.registrar();
+    expect(c.error).toContain('posterior a la de expedici\u00f3n');
+    expect(alerta).not.toHaveBeenCalled();
     http.expectNone(`${API}/auth/registro`);
+  });
+
+  it('valida cada campo con un mensaje claro: espacios, documento, telefono y correo', async () => {
+    const { c } = preparar();
+    c.form.markAllAsTouched();
+    c.form.patchValue({ primerNombre: '   ', documento: 'ab', telefono: '12', correo: 'ana@correo' });
+    expect(c.validar(c.form, 'primerNombre')).toContain('obligatorio');
+    expect(c.validar(c.form, 'documento')).toContain('entre 4 y 20');
+    expect(c.validar(c.form, 'telefono')).toContain('tel\u00e9fono v\u00e1lido');
+    expect(c.validar(c.form, 'correo')).toContain('correo electr\u00f3nico v\u00e1lido');
   });
 });
