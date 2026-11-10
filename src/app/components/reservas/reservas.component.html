@@ -2,144 +2,151 @@
     <div>
         <div class="eyebrow">OPERACIÓN / ALQUILERES</div>
         <h1>{{auth.esCliente?'Mis reservas':'Gestión de reservas'}}</h1>
-        <p>Prepara cotizaciones y pre-reservas, con validación local de fechas, clientes, licencias y cruces.</p>
+        <p>Crea una reserva, págala para confirmarla y consulta su estado. El costo lo calcula el sistema.</p>
     </div>
-    <div class="head-actions"><button class="btn btn-primary" (click)="nueva()">+ Crear pre-reserva</button></div>
+    <div class="head-actions"><button class="btn btn-primary" (click)="nueva()">+ Nueva reserva</button></div>
 </div>
 <div class="form-success" *ngIf="exito" role="status">{{exito}}</div>
-<div class="form-error" *ngIf="error && !verFormulario" role="alert">{{error}}</div>
+<div class="form-error" *ngIf="error" role="alert">{{error}}</div>
 <div class="two-column" *ngIf="verFormulario">
     <div class="panel">
         <div class="panel-head">
             <div>
-                <h2>{{edicion?'Editar pre-reserva':'Nueva pre-reserva'}}</h2>
-                <p>Completa la información del alquiler.</p>
-            </div><button class="btn btn-sm btn-outline" (click)="cerrar()">Cerrar</button>
+                <h2>Nueva reserva</h2>
+                <p>Primero elige las fechas: solo se ofrecen los vehículos libres en ese rango.</p>
+            </div><button class="btn btn-sm btn-outline" type="button" (click)="cerrar()">Cerrar</button>
         </div>
         <form [formGroup]="form" class="panel-body" (ngSubmit)="guardar()">
-            <h3 class="section-title">Cliente y vehículo</h3>
+            <h3 class="section-title">Fechas</h3>
             <div class="form-grid">
-                <div class="field"><label for="cliente-reserva">Cliente *</label><select id="cliente-reserva"
-                        formControlName="clienteId"
-                        [attr.aria-label]="auth.esCliente?'Tu cuenta de cliente':'Seleccionar cliente'">
-                        <option value="">Seleccionar cliente</option>
-                        <option *ngFor="let c of datos.clientes" [value]="c.id" [disabled]="c.estado!=='activo'">
-                            {{c.primerNombre}} {{c.primerApellido}} · {{c.documento}}</option>
-                    </select><span class="error" *ngIf="validar(form,'clienteId')">{{validar(form,'clienteId')}}</span>
-                </div>
-                <div class="field"><label for="vehiculo-reserva">Vehículo *</label><select id="vehiculo-reserva"
-                        formControlName="vehiculoId" (change)="cambioVehiculo()">
-                        <option value="">Seleccionar vehículo</option>
-                        <option *ngFor="let v of candidatos" [value]="v.id">{{v.marca}} · {{v.placa}} ·
-                            {{datos.nombreCategoria(v.categoriaId)}}</option>
-                    </select><span class="error"
-                        *ngIf="validar(form,'vehiculoId')">{{validar(form,'vehiculoId')}}</span></div>
+                <div class="field"><label for="inicio">Recogida *</label><input id="inicio" type="date" [min]="hoy" formControlName="fechaInicio" (change)="cambioFechas()"><span class="error" *ngIf="validar(form,'fechaInicio')">{{validar(form,'fechaInicio')}}</span></div>
+                <div class="field"><label for="fin">Devolución *</label><input id="fin" type="date" [min]="hoy" formControlName="fechaFin" (change)="cambioFechas()"><span class="error" *ngIf="validar(form,'fechaFin')">{{validar(form,'fechaFin')}}</span></div>
             </div>
             <div class="divider"></div>
-            <h3 class="section-title">Fechas y sedes</h3>
+            <h3 class="section-title">Cliente y vehículo</h3>
             <div class="form-grid">
-                <div class="field"><label for="inicio">Recogida *</label><input id="inicio" type="datetime-local"
-                        formControlName="fechaInicio"><span class="error"
-                        *ngIf="validar(form,'fechaInicio')">{{validar(form,'fechaInicio')}}</span></div>
-                <div class="field"><label for="fin">Devolución *</label><input id="fin" type="datetime-local"
-                        formControlName="fechaFin"><span class="error"
-                        *ngIf="validar(form,'fechaFin')">{{validar(form,'fechaFin')}}</span></div>
-                <div class="field"><label for="sede-entrega">Sede de recogida *</label><select id="sede-entrega"
-                        formControlName="sedeEntregaId">
-                        <option value="">Seleccionar sede</option>
-                        <option *ngFor="let s of datos.sedes" [value]="s.id" [disabled]="s.estado!=='activo'">
-                            {{s.nombre}}</option>
-                    </select><small>Debe coincidir con la sede actual del vehículo.</small></div>
-                <div class="field"><label for="sede-recibe">Sede de devolución *</label><select id="sede-recibe"
-                        formControlName="sedeRecibeId">
-                        <option value="">Seleccionar sede</option>
-                        <option *ngFor="let s of datos.sedes" [value]="s.id" [disabled]="s.estado!=='activo'">
-                            {{s.nombre}}</option>
-                    </select><small>Una devolución en otra sede requiere validación operativa posterior.</small></div>
+                <div class="field" *ngIf="puedeOperar"><label for="cliente-reserva">Cliente *</label>
+                    <select id="cliente-reserva" formControlName="clienteId">
+                        <option [ngValue]="null">Seleccionar cliente</option>
+                        <option *ngFor="let c of clientes" [ngValue]="c.idCliente" [disabled]="c.estado!=='ACTIVO'">{{c.primerNombre}} {{c.primerApellido}} · {{c.numeroDocumento}}</option>
+                    </select><span class="error" *ngIf="validar(form,'clienteId')">{{validar(form,'clienteId')}}</span></div>
+                <div class="field" *ngIf="!puedeOperar"><label>Cliente</label><input [value]="auth.sesion?.nombre" disabled><small>La reserva se crea a tu nombre.</small></div>
+                <div class="field"><label for="vehiculo-reserva">Vehículo *</label>
+                    <select id="vehiculo-reserva" formControlName="vehiculoId" (change)="cambioVehiculo()">
+                        <option [ngValue]="null">{{vehiculos.length?'Seleccionar vehículo':'Elige primero las fechas'}}</option>
+                        <option *ngFor="let v of vehiculos" [ngValue]="v.idVehiculo">{{v.marca}} · {{v.placa}} · {{v.nombreCategoria}}</option>
+                    </select><span class="error" *ngIf="validar(form,'vehiculoId')">{{validar(form,'vehiculoId')}}</span></div>
+            </div>
+            <div class="divider"></div>
+            <h3 class="section-title">Sedes</h3>
+            <div class="form-grid">
+                <div class="field"><label>Sede de recogida</label><input [value]="vehiculoElegido?.nombreSede || 'Se asigna con el vehículo'" disabled><small>Es la sede donde está el vehículo.</small></div>
+                <div class="field"><label for="sede-recibe">Sede de devolución *</label>
+                    <select id="sede-recibe" formControlName="sedeRecibeId">
+                        <option [ngValue]="null">Seleccionar sede</option>
+                        <option *ngFor="let s of sedes" [ngValue]="s.idSede">{{s.nombreSede}} · {{s.ciudad}}</option>
+                    </select><span class="error" *ngIf="validar(form,'sedeRecibeId')">{{validar(form,'sedeRecibeId')}}</span></div>
             </div>
             <div class="divider"></div>
             <h3 class="section-title">Coberturas opcionales</h3>
-            <div *ngFor="let s of segurosActivos" class="checkline"><input type="checkbox" [id]="'seguro-'+s.id"
-                    [checked]="seguroMarcado(s.id)" (change)="alternarSeguro(s.id, !seguroMarcado(s.id))"><label
-                    [for]="'seguro-'+s.id">{{s.nombre}} <span class="small-note">—
-                        {{s.costoDiario|currency:'COP':'symbol-narrow':'1.0-0'}} por día</span></label></div>
-            <p *ngIf="!segurosActivos.length" class="small-note">No hay seguros activos registrados.</p>
-            <div class="form-error" *ngIf="form.hasError('fechas') && form.touched">La devolución debe ser posterior a
-                la recogida.</div>
-            <div class="form-error" *ngIf="error" role="alert">{{error}}</div>
-            <div class="form-actions"><button class="btn btn-primary" type="submit"
-                    [disabled]="guardando">{{guardando?'Guardando...':'Guardar pre-reserva local'}}</button><button
-                    class="btn btn-outline" type="button" (click)="cerrar()">Cancelar</button></div>
+            <div *ngFor="let s of seguros" class="checkline"><input type="checkbox" [id]="'seguro-'+s.idSeguro" [checked]="seguroMarcado(s.idSeguro)" (change)="alternarSeguro(s.idSeguro, !seguroMarcado(s.idSeguro))"><label [for]="'seguro-'+s.idSeguro">{{s.nombreSeguro}} <span class="small-note">— {{s.costoDiario|currency:'COP':'symbol-narrow':'1.0-0'}} por día</span></label></div>
+            <p *ngIf="!seguros.length" class="small-note">No hay seguros disponibles.</p>
+            <div class="form-error" *ngIf="form.hasError('fechas') && form.touched">La devolución debe ser posterior a la recogida.</div>
+            <div class="form-actions"><button class="btn btn-primary" type="submit" [disabled]="guardando">{{guardando?'Creando...':'Crear reserva'}}</button><button class="btn btn-outline" type="button" (click)="cerrar()">Cancelar</button></div>
         </form>
     </div>
     <aside class="panel side-summary">
-        <div class="panel-head">
-            <h2>Detalle estimado</h2>
-        </div>
+        <div class="panel-head"><h2>Costo estimado</h2></div>
         <div class="panel-pad">
-            <div class="mini-label">COTIZACIÓN LOCAL · COP</div>
-            <div class="summary-line"><span>Días facturables</span><strong>{{cotizacion.dias}}</strong></div>
-            <div class="summary-line"><span>Alquiler por
-                    categoría</span><strong>{{cotizacion.base|currency:'COP':'symbol-narrow':'1.0-0'}}</strong></div>
-            <div class="summary-line"><span>Seguros
-                    seleccionados</span><strong>{{cotizacion.seguros|currency:'COP':'symbol-narrow':'1.0-0'}}</strong>
-            </div>
-            <div class="summary-total">
-                <span>Subtotal</span><strong>{{cotizacion.total|currency:'COP':'symbol-narrow':'1.0-0'}}</strong></div>
-            
+            <div class="mini-label">COTIZACIÓN DEL SISTEMA · COP</div>
+            <ng-container *ngIf="cotizacion;else sinCotizacion">
+                <div class="summary-line"><span>Días facturables</span><strong>{{cotizacion.dias}}</strong></div>
+                <div class="summary-total"><span>Total</span><strong>{{cotizacion.costoTotal|currency:'COP':'symbol-narrow':'1.0-0'}}</strong></div>
+                <p class="small-note">Incluye la tarifa de la categoría y los seguros elegidos.</p>
+            </ng-container>
+            <ng-template #sinCotizacion><p class="small-note">Elige fechas y vehículo para ver el costo.</p></ng-template>
         </div>
     </aside>
 </div>
+<section class="panel" *ngIf="detalle as d">
+    <div class="panel-head">
+        <div><h2>Reserva #{{d.idReserva}}</h2><p>{{d.nombreCliente}} · {{d.placa}}</p></div>
+        <div class="button-row"><span class="badge-status" [class.pending]="d.estadoReserva==='PENDIENTE'" [class.active]="d.estadoReserva==='CONFIRMADA'||d.estadoReserva==='EN_CURSO'||d.estadoReserva==='FINALIZADA'" [class.danger]="d.estadoReserva==='CANCELADA'">{{d.estadoReserva}}</span><button class="btn btn-sm btn-outline" type="button" (click)="cerrarDetalle()">Cerrar</button></div>
+    </div>
+    <div class="panel-pad">
+        <div class="summary-line"><span>Recogida</span><strong>{{d.fechaInicio|date:'dd/MM/yyyy'}} · {{d.nombreSedeEntrega}}</strong></div>
+        <div class="summary-line"><span>Devolución</span><strong>{{d.fechaFin|date:'dd/MM/yyyy'}} · {{d.nombreSedeRecibe}}</strong></div>
+        <div class="summary-line" *ngIf="d.nombreAsesor"><span>Asesor</span><strong>{{d.nombreAsesor}}</strong></div>
+        <div class="summary-line" *ngFor="let s of d.seguros"><span>Seguro: {{s.nombreSeguro}}</span><strong>{{s.costoContratado|currency:'COP':'symbol-narrow':'1.0-0'}}</strong></div>
+        <div class="summary-line"><span>Total de la reserva</span><strong>{{d.costoTotal|currency:'COP':'symbol-narrow':'1.0-0'}}</strong></div>
+        <div class="summary-total"><span>Saldo pendiente</span><strong>{{d.saldoPendiente|currency:'COP':'symbol-narrow':'1.0-0'}}</strong></div>
+        <div class="table-wrap" *ngIf="d.pagos.length">
+            <table class="data-table"><thead><tr><th>Fecha</th><th>Método</th><th>Monto</th><th>Estado</th></tr></thead>
+                <tbody><tr *ngFor="let p of d.pagos"><td>{{p.fechaPago|date:'dd/MM/yyyy'}}</td><td>{{p.metodoPago}}</td><td class="money">{{p.monto|currency:'COP':'symbol-narrow':'1.0-0'}}</td><td><span class="badge-status" [class.active]="p.estadoPago==='APROBADO'" [class.danger]="p.estadoPago==='RECHAZADO'" [class.pending]="p.estadoPago==='REEMBOLSADO'">{{p.estadoPago}}</span></td></tr></tbody></table>
+        </div>
+        <ng-container *ngIf="puedePagar">
+            <div class="divider"></div>
+            <h3 class="section-title">Registrar pago</h3>
+            <div class="form-grid">
+                <div class="field"><label for="pago-monto">Monto (COP)</label><input id="pago-monto" type="number" min="1" [max]="d.saldoPendiente" [(ngModel)]="pago.monto" name="pagoMonto"></div>
+                <div class="field"><label for="pago-metodo">Método</label><select id="pago-metodo" [(ngModel)]="pago.metodo" name="pagoMetodo"><option *ngFor="let m of metodos" [value]="m">{{m}}</option></select></div>
+                <div class="field"><label for="pago-banco">Respuesta del banco (simulada)</label><select id="pago-banco" [(ngModel)]="pago.resultado" name="pagoBanco"><option value="APROBADO">Aprobado</option><option value="RECHAZADO">Rechazado</option></select><small>Un pago rechazado cancela la pre-reserva de inmediato.</small></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-primary" type="button" [disabled]="guardando" (click)="pagar()">{{guardando?'Procesando...':'Pagar'}}</button></div>
+        </ng-container>
+        <div class="divider" *ngIf="puedeIniciar || puedeFinalizar || puedeCancelar"></div>
+        <div class="form-grid" *ngIf="puedeIniciar && auth.esAdmin"><div class="field"><label for="asesor-entrega">Asesor que entrega *</label><select id="asesor-entrega" [(ngModel)]="asesorElegido" name="asesorEntrega"><option [ngValue]="''">Seleccionar asesor</option><option *ngFor="let a of asesores" [ngValue]="a.idEmpleado">{{a.primerNombre}} {{a.primerApellido}}</option></select></div></div>
+        <p class="small-note" *ngIf="puedeIniciar">Para iniciar la entrega debe existir la inspección de ENTREGA del vehículo (módulo Inspecciones).</p>
+        <p class="small-note" *ngIf="puedeFinalizar">Para finalizar deben existir la inspección de DEVOLUCIÓN y el saldo en cero.</p>
+        <div class="button-row">
+            <button class="btn btn-primary" type="button" *ngIf="puedeIniciar" (click)="iniciar()">Iniciar alquiler (entrega)</button>
+            <button class="btn btn-primary" type="button" *ngIf="puedeFinalizar" (click)="finalizar()">Finalizar alquiler (devolución)</button>
+            <a class="btn btn-outline" routerLink="/inspecciones" *ngIf="puedeIniciar || puedeFinalizar">Ir a inspecciones</a>
+            <button class="btn btn-danger" type="button" *ngIf="puedeCancelar" (click)="cancelar()">Cancelar reserva</button>
+        </div>
+    </div>
+</section>
 <section class="panel">
     <div class="panel-head">
         <div>
-            <h2>Historial de pre-reservas locales</h2>
-            <p>Sin estado «confirmada»: requiere pago aprobado y transacción en base de datos.</p>
-        </div><select class="list-filter" [(ngModel)]="filtro" aria-label="Filtrar estado">
+            <h2>{{auth.esCliente?'Mis reservas':'Reservas registradas'}}</h2>
+            <p>Una reserva se confirma cuando su pago es aprobado.</p>
+        </div><select class="list-filter" [ngModel]="filtro" (ngModelChange)="filtro=$event; cargarReservas()" aria-label="Filtrar estado">
             <option value="">Todas</option>
-            <option value="borrador">Borradores</option>
-            <option value="cancelada">Canceladas</option>
+            <option value="PENDIENTE">Pendientes</option>
+            <option value="CONFIRMADA">Confirmadas</option>
+            <option value="EN_CURSO">En curso</option>
+            <option value="FINALIZADA">Finalizadas</option>
+            <option value="CANCELADA">Canceladas</option>
         </select>
     </div>
-    <div class="table-wrap" *ngIf="filtrados.length">
+    <div class="table-wrap" *ngIf="reservas.length">
         <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Vehículo</th>
-                    <th>Cliente</th>
-                    <th>Recogida</th>
-                    <th>Devolución</th>
-                    <th>Subtotal</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Reserva</th><th>Vehículo</th><th>Cliente</th><th>Recogida</th><th>Devolución</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead>
             <tbody>
-                <tr *ngFor="let r of filtrados">
-                    <td><strong>{{datos.nombreVehiculo(r.vehiculoId)}}</strong><span
-                            class="subtext">{{datos.nombreSede(r.sedeEntregaId)}} →
-                            {{datos.nombreSede(r.sedeRecibeId)}}</span></td>
-                    <td>{{datos.nombreCliente(r.clienteId)}}</td>
-                    <td>{{r.fechaInicio | date:'dd/MM/yyyy HH:mm'}}</td>
-                    <td>{{r.fechaFin | date:'dd/MM/yyyy HH:mm'}}</td>
-                    <td class="money">{{r.costoEstimado | currency:'COP':'symbol-narrow':'1.0-0'}}</td>
-                    <td><span class="badge-status" [class.pending]="r.estado==='borrador'"
-                            [class.danger]="r.estado==='cancelada'">{{r.estado}}</span></td>
-                    <td>
-                        <div class="button-row"><button class="btn btn-sm btn-outline"
-                                [disabled]="r.estado==='cancelada'" (click)="editar(r)">Editar</button><button
-                                class="btn btn-sm btn-danger" [disabled]="r.estado==='cancelada'"
-                                (click)="cancelarReserva(r)">Cancelar</button></div>
-                    </td>
+                <tr *ngFor="let r of reservas">
+                    <td>#{{r.idReserva}}</td>
+                    <td><strong>{{r.placa}}</strong></td>
+                    <td>{{r.nombreCliente}}</td>
+                    <td>{{r.fechaInicio | date:'dd/MM/yyyy'}}</td>
+                    <td>{{r.fechaFin | date:'dd/MM/yyyy'}}</td>
+                    <td class="money">{{r.costoTotal | currency:'COP':'symbol-narrow':'1.0-0'}}</td>
+                    <td><span class="badge-status" [class.pending]="r.estadoReserva==='PENDIENTE'" [class.active]="r.estadoReserva==='CONFIRMADA'||r.estadoReserva==='EN_CURSO'||r.estadoReserva==='FINALIZADA'" [class.danger]="r.estadoReserva==='CANCELADA'">{{r.estadoReserva}}</span></td>
+                    <td><button class="btn btn-sm btn-outline" type="button" (click)="verDetalle(r)">Ver detalle</button></td>
                 </tr>
             </tbody>
         </table>
     </div>
-    <div class="empty-state" *ngIf="!filtrados.length"><span class="empty-symbol">R</span>
-        <h3>Sin pre-reservas en esta vista</h3>
-        <p>Para crear una pre-reserva necesitas clientes activos con licencia vigente, vehículos disponibles y sedes
-            registradas.</p>
-        <div class="button-row center-actions"><button class="btn btn-primary" (click)="nueva()">Crear
-                pre-reserva</button><a routerLink="/catalogo" class="btn btn-outline">Consultar vehículos</a></div>
+    <div class="empty-state" *ngIf="!reservas.length && !cargando"><span class="empty-symbol">R</span>
+        <h3>Sin reservas en esta vista</h3>
+        <p>Cuando crees una reserva aparecerá aquí con su estado y sus pagos.</p>
+        <div class="button-row center-actions"><button class="btn btn-primary" (click)="nueva()">Nueva reserva</button><a routerLink="/catalogo" class="btn btn-outline">Consultar vehículos</a></div>
+    </div>
+</section>
+<section class="panel" *ngIf="auth.esCliente && penalizaciones.length">
+    <div class="panel-head"><div><h2>Cargos por daños</h2><p>Se generan cuando la inspección de devolución reporta daños o faltantes.</p></div></div>
+    <div class="table-wrap">
+        <table class="data-table"><thead><tr><th>Reserva</th><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Estado</th></tr></thead>
+            <tbody><tr *ngFor="let p of penalizaciones"><td>#{{p.idReserva}}</td><td>{{p.fechaCargo|date:'dd/MM/yyyy'}}</td><td>{{p.concepto}}</td><td class="money">{{p.monto|currency:'COP':'symbol-narrow':'1.0-0'}}</td><td><span class="badge-status" [class.pending]="p.estadoCargo==='PENDIENTE'" [class.active]="p.estadoCargo==='PAGADA'" [class.danger]="p.estadoCargo==='ANULADA'">{{p.estadoCargo}}</span></td></tr></tbody></table>
     </div>
 </section>
