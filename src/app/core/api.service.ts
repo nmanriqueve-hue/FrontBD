@@ -135,7 +135,7 @@ export class ApiService {
   crearPenalizacion(idReserva: number, datos: PenalizacionRequest): Observable<PenalizacionResponse> { return this.http.post<PenalizacionResponse>(`${API_URL}/reservas/${idReserva}/penalizaciones`, datos); }
   estadoPenalizacion(id: number, estado: 'PAGADA' | 'ANULADA'): Observable<PenalizacionResponse> { return this.http.patch<PenalizacionResponse>(`${API_URL}/penalizaciones/${id}/estado`, { estado }); }
 
-  // ---------- Inspecciones (MongoDB) ----------
+  // ---------- Inspecciones ----------
   inspeccionesDeVehiculo(idVehiculo: number): Observable<InspeccionResponse[]> { return this.http.get<InspeccionResponse[]>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones`); }
   costoMantenimiento(idVehiculo: number): Observable<CostoMantenimientoResponse> { return this.http.get<CostoMantenimientoResponse>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones/costo-total`); }
   inspeccion(idVehiculo: number, idInspeccion: string): Observable<InspeccionResponse> { return this.http.get<InspeccionResponse>(`${API_URL}/vehiculos/${idVehiculo}/inspecciones/${idInspeccion}`); }

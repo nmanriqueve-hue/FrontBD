@@ -143,7 +143,7 @@ export class InspeccionesComponent implements OnInit, OnDestroy {
       const fallidas = await this.subirPendientes(guardada.idInspeccion);
       const esNueva = !this.edicion;
       this.cerrar(); await this.cargarInspecciones();
-      this.exito = (esNueva ? 'Inspección registrada en MongoDB.' : 'Inspección actualizada.') + (fallidas ? ` ${fallidas} foto(s) no se pudieron subir.` : '');
+      this.exito = (esNueva ? 'Inspección registrada correctamente.' : 'Inspección actualizada.') + (fallidas ? ` ${fallidas} foto(s) no se pudieron subir.` : '');
     } catch (e) { this.error = mensajeError(e, 'No se pudo guardar la inspección.'); }
     finally { this.guardando = false; }
   }

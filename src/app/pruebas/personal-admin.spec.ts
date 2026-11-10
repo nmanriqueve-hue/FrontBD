@@ -87,7 +87,7 @@ describe('Pantallas del personal contra el backend', () => {
     const foto = await responder(http, 'POST', `/inspecciones/${'a'.repeat(24)}/fotos`, INSP);
     expect(foto.request.body instanceof FormData).toBe(true);
     await responder(http, 'GET', '/vehiculos/7/inspecciones', [INSP]); await g;
-    expect(c.exito).toContain('MongoDB'); http.verify();
+    expect(c.exito).toContain('registrada'); http.verify();
   });
 
   it('inspecciones (tecnico): solo MANTENIMIENTO, sin reserva, con piezas', async () => {

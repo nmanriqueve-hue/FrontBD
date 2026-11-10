@@ -270,7 +270,7 @@ export interface PenalizacionResponse {
   idInspeccion: string | null;
 }
 
-// ---------- Inspecciones (MongoDB) ----------
+// ---------- Inspecciones ----------
 export interface DanoDTO { zona: string; descripcion: string; severidad: SeveridadDano; }
 export interface PiezaDTO { nombre: string; cantidad: number; costo: number; }
 
