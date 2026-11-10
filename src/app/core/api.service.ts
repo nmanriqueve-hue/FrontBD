@@ -4,13 +4,13 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_URL } from './api-config';
 import {
-  ApiError, CambiarClaveRequest, ClienteRequest, CategoriaRequest, CategoriaResponse, ClaveTemporalResponse,
+  ApiError, CambiarClaveRequest, ClienteRequest, CategoriaRequest, CategoriaResponse, 
   ClienteResponse, ClienteUpdateRequest, EstadoCliente, CostoMantenimientoResponse, CotizacionResponse, EmpleadoRequest,
   EmpleadoResponse, EmpleadosSedeResponse, EstadoCatalogo, EstadoReserva, EstadoVehiculo, FlotaEstadoResponse,
   GastoTecnicoResponse, HistorialVehiculoResponse, IngresoSedeResponse, InspeccionRequest, InspeccionResponse,
   InspeccionUpdateRequest, LicenciaRequest, LicenciaResponse, LoginRequest, LoginResponse, PagoRequest, PagoResponse,
   Pagina, PenalizacionRequest, PenalizacionResponse, PerfilResponse, PiezaDTO, PiezaFrecuenciaResponse,
-  RegistroRequest, RestablecerClaveRequest, ReservaRequest, ReservaResponse, ReservaResumen, SedeRequest, SedeResponse,
+  RegistroRequest, RecuperarClaveRequest, ReservaRequest, ReservaResponse, ReservaResumen, SedeRequest, SedeResponse,
   SeguroRankingResponse, SeguroRequest, SeguroResponse, TipoEmpleado, TipoInspeccion, VehiculoRequest, VehiculoResponse
 } from './api-models';
 
@@ -69,7 +69,7 @@ export class ApiService {
   registro(datos: RegistroRequest): Observable<LoginResponse> { return this.http.post<LoginResponse>(`${API_URL}/auth/registro`, datos); }
   me(): Observable<PerfilResponse> { return this.http.get<PerfilResponse>(`${API_URL}/auth/me`); }
   cambiarClave(datos: CambiarClaveRequest): Observable<LoginResponse> { return this.http.post<LoginResponse>(`${API_URL}/auth/cambiar-clave`, datos); }
-  restablecerClave(datos: RestablecerClaveRequest): Observable<ClaveTemporalResponse> { return this.http.post<ClaveTemporalResponse>(`${API_URL}/auth/restablecer-clave`, datos); }
+  recuperarClave(datos: RecuperarClaveRequest): Observable<void> { return this.http.post<void>(`${API_URL}/auth/recuperar-clave`, datos); }
 
   // ---------- Sedes, categorías y seguros ----------
   sedes(incluirInactivos = false): Observable<SedeResponse[]> { return this.http.get<SedeResponse[]>(`${API_URL}/sedes`, { params: parametros({ incluirInactivos }) }); }

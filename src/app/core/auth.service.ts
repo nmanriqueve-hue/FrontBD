@@ -72,9 +72,9 @@ export class AuthService {
     catch (e) { throw new Error(mensajeError(e, 'No se pudo actualizar la contraseña.')); }
   }
 
-  /** Genera una clave temporal de un solo uso (administrador, o asesor para clientes). */
-  async restablecerClave(tipo: TipoCuenta, id: number): Promise<string> {
-    try { return (await firstValueFrom(this.api.restablecerClave({ tipo, id }))).claveTemporal; }
+  /** Recuperación sin sesión: correo y documento identifican la cuenta y se define la clave nueva. */
+  async recuperarClave(correo: string, numeroDocumento: string, claveNueva: string): Promise<void> {
+    try { await firstValueFrom(this.api.recuperarClave({ correo: correo.trim().toLowerCase(), numeroDocumento: numeroDocumento.trim(), claveNueva })); }
     catch (e) { throw new Error(mensajeError(e, 'No se pudo restablecer la contraseña.')); }
   }
 
