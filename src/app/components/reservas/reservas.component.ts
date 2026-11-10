@@ -9,7 +9,7 @@ import {
 } from '../../core/api-models';
 import { AuthService } from '../../core/auth.service';
 import { fechaIso, METODOS_PAGO } from '../../core/formato';
-import { fechasCoherentes, validarControl } from '../../core/validadores';
+import { fechasCoherentes, validarControl, resumenInvalidos, enfocarPrimerInvalido } from '../../core/validadores';
 
 @Component({ selector: 'app-reservas', standalone: false, templateUrl: './reservas.component.html', styleUrl: './reservas.component.css' })
 export class ReservasComponent implements OnInit {
@@ -129,7 +129,7 @@ export class ReservasComponent implements OnInit {
   async guardar(): Promise<void> {
     this.form.markAllAsTouched(); this.error = ''; this.exito = '';
     if (this.guardando) { return; }
-    if (this.form.invalid) { this.error = this.form.hasError('fechas') ? 'La fecha de devolución debe ser posterior a la de recogida.' : 'Completa todos los datos de la reserva.'; return; }
+    if (this.form.invalid) { this.error = this.form.hasError('fechas') ? 'La fecha de devolución debe ser posterior a la de recogida.' : resumenInvalidos(this.form); enfocarPrimerInvalido(); return; }
     const v = this.form.getRawValue();
     const vehiculo = this.vehiculoElegido;
     if (v.fechaInicio < this.hoy) { this.error = 'La recogida debe ser hoy o una fecha futura.'; return; }
