@@ -13,7 +13,6 @@ import { ReportesComponent } from './components/reportes/reportes.component';
 import { AccesoComponent } from './components/acceso/acceso.component';
 import { RegistroComponent } from './components/registro/registro.component';
 import { RecuperacionComponent } from './components/recuperacion/recuperacion.component';
-import { CuentasComponent } from './components/cuentas/cuentas.component';
 import { PerfilComponent } from './components/perfil/perfil.component';
 import { SinPermisoComponent } from './components/sin-permiso/sin-permiso.component';
 import { RolGuard } from './core/rol.guard';
@@ -34,7 +33,6 @@ const rutas: Routes = [
   { path: 'flota', component: InventarioComponent, canActivate: [RolGuard], data: { roles: ['administrador'] }, title: 'Flota | RutaCar' },
   { path: 'catalogos', component: ConfiguracionComponent, canActivate: [RolGuard], data: { roles: ['administrador'] }, title: 'Sedes, categorías y seguros | RutaCar' },
   { path: 'empleados', component: EmpleadosComponent, canActivate: [RolGuard], data: { roles: ['administrador'] }, title: 'Empleados | RutaCar' },
-  { path: 'cuentas', component: CuentasComponent, canActivate: [RolGuard], data: { roles: ['administrador'] }, title: 'Cuentas y roles | RutaCar' },
   { path: 'reportes', component: ReportesComponent, canActivate: [RolGuard], data: { roles: ['administrador','tecnico'] }, title: 'Reportes | RutaCar' },
   { path: '**', redirectTo: '' }
 ];
