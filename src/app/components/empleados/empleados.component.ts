@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService, mensajeError } from '../../core/api.service';
 import { EmpleadoResponse, SedeResponse, TipoEmpleado } from '../../core/api-models';
 import { CLAVE_POLITICA, fechaIso } from '../../core/formato';
-import { validarControl } from '../../core/validadores';
+import { validarControl, resumenInvalidos, enfocarPrimerInvalido } from '../../core/validadores';
 
 @Component({ selector: 'app-empleados', standalone: false, templateUrl: './empleados.component.html', styleUrl: './empleados.component.css' })
 export class EmpleadosComponent implements OnInit {
@@ -21,9 +21,9 @@ export class EmpleadosComponent implements OnInit {
   readonly validar = validarControl;
   constructor(private api: ApiService, fb: FormBuilder) {
     this.form = fb.group({
-      documento: ['', [Validators.required, Validators.pattern('^[0-9A-Za-z-]{4,25}$')]], primerNombre: ['', [Validators.required, Validators.maxLength(50)]], primerApellido: ['', [Validators.required, Validators.maxLength(50)]],
-      correo: ['', [Validators.required, Validators.email]], clave: ['', [Validators.required, Validators.pattern(CLAVE_POLITICA)]],
-      fechaContratacion: ['', Validators.required], idSede: [null, Validators.required], tipo: ['ASESOR', Validators.required], mostradorAsignado: [null], especialidad: ['']
+      documento: ['', [Validators.required, Validators.pattern('^[0-9A-Za-z-]{4,20}$')]], primerNombre: ['', [Validators.required, Validators.maxLength(50)]], primerApellido: ['', [Validators.required, Validators.maxLength(50)]],
+      correo: ['', [Validators.required, Validators.email, Validators.maxLength(100)]], clave: ['', [Validators.required, Validators.pattern(CLAVE_POLITICA)]],
+      fechaContratacion: ['', Validators.required], idSede: [null, Validators.required], tipo: ['ASESOR', Validators.required], mostradorAsignado: [null, Validators.min(1)], especialidad: ['', Validators.maxLength(50)]
     });
   }
   ngOnInit(): void { void this.iniciar(); }
@@ -48,7 +48,7 @@ export class EmpleadosComponent implements OnInit {
   async guardar(): Promise<void> {
     this.form.markAllAsTouched(); this.error = ''; this.exito = '';
     if (this.guardando) { return; }
-    if (this.form.invalid) { this.error = 'Completa los campos obligatorios con datos válidos.'; return; }
+    if (this.form.invalid) { this.error = resumenInvalidos(this.form); enfocarPrimerInvalido(); return; }
     const v = this.form.getRawValue();
     if (v.fechaContratacion > this.hoy) { this.error = 'La fecha de contratación no puede ser futura.'; return; }
     this.guardando = true;

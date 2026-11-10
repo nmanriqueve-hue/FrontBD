@@ -2,8 +2,10 @@ import { ChangeDetectorRef, Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
-import { fechaIso } from '../../core/formato';
-import { validarControl } from '../../core/validadores';
+import { CLAVE_POLITICA } from '../../core/formato';
+import { coincideCon, enfocarPrimerInvalido, fechaNoFutura, fechaNoPasada, fechasCoherentes, resumenInvalidos, sinSoloEspacios, validarControl } from '../../core/validadores';
+
+const CORREO = '^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$';
 
 @Component({ selector: 'app-registro', standalone: false, templateUrl: './registro.component.html', styleUrl: './registro.component.css' })
 export class RegistroComponent implements OnDestroy {
@@ -13,21 +15,35 @@ export class RegistroComponent implements OnDestroy {
   private destruido = false;
   readonly validar = validarControl;
   constructor(fb: FormBuilder, public auth: AuthService, private router: Router, private cdr: ChangeDetectorRef) {
-    this.form = fb.group({ documento: ['', [Validators.required, Validators.pattern('^[A-Za-z0-9-]{4,25}$')]], primerNombre: ['', [Validators.required, Validators.maxLength(70)]], segundoNombre: [''], primerApellido: ['', Validators.required], segundoApellido: [''], correo: ['', [Validators.required, Validators.email]], telefono: ['', [Validators.required, Validators.pattern('^[0-9+() -]{7,20}$')]], numeroLicencia: ['', Validators.required], categoriaLicencia: ['', Validators.required], expedicion: ['', Validators.required], vencimiento: ['', Validators.required], clave: ['', [Validators.required, Validators.minLength(10), Validators.pattern('(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{10,}')]], confirmar: ['', Validators.required] });
+    this.form = fb.group({
+      documento: ['', [Validators.required, Validators.pattern('^[A-Za-z0-9-]{4,20}$')]],
+      primerNombre: ['', [Validators.required, sinSoloEspacios, Validators.maxLength(50)]],
+      segundoNombre: ['', Validators.maxLength(50)],
+      primerApellido: ['', [Validators.required, sinSoloEspacios, Validators.maxLength(50)]],
+      segundoApellido: ['', Validators.maxLength(50)],
+      correo: ['', [Validators.required, Validators.email, Validators.pattern(CORREO), Validators.maxLength(100)]],
+      telefono: ['', [Validators.required, Validators.pattern('^[0-9+() -]{7,20}$')]],
+      numeroLicencia: ['', [Validators.required, sinSoloEspacios, Validators.maxLength(50)]],
+      categoriaLicencia: ['', [Validators.required, sinSoloEspacios, Validators.maxLength(5)]],
+      expedicion: ['', [Validators.required, fechaNoFutura('La fecha de expedici\u00f3n no puede ser posterior a hoy.')]],
+      vencimiento: ['', [Validators.required, fechaNoPasada('La licencia debe estar vigente: la fecha de vencimiento no puede ser anterior a hoy.')]],
+      clave: ['', [Validators.required, Validators.pattern(CLAVE_POLITICA)]],
+      confirmar: ['', [Validators.required, coincideCon('clave', 'Las contrase\u00f1as no coinciden.')]]
+    }, { validators: fechasCoherentes('expedicion', 'vencimiento') });
+    // Si cambia la contrase\u00f1a, se vuelve a comparar la confirmaci\u00f3n.
+    this.form.get('clave')?.valueChanges.subscribe(() => this.form.get('confirmar')?.updateValueAndValidity());
   }
 
   async registrar(): Promise<void> {
-    this.form.markAllAsTouched(); this.error = '';
     if (this.cargando) { return; }
+    this.form.markAllAsTouched(); this.error = '';
     if (this.form.invalid) {
-      const campos = Object.keys(this.form.controls).filter(k => this.form.controls[k].invalid);
-      this.avisar('Revisa estos campos antes de registrarte: ' + campos.join(', ') + '.');
+      const fechas = this.form.hasError('fechas') ? ' La fecha de vencimiento debe ser posterior a la de expedici\u00f3n.' : '';
+      this.error = resumenInvalidos(this.form) + fechas;
+      enfocarPrimerInvalido();
       return;
     }
     const v = this.form.getRawValue();
-    if (v.clave !== v.confirmar) { this.avisar('Las contrase\u00f1as no coinciden.'); return; }
-    const hoy = fechaIso();
-    if (v.expedicion > hoy || v.vencimiento < hoy || v.expedicion >= v.vencimiento) { this.avisar('La licencia debe estar expedida y vigente. Verifica ambas fechas.'); return; }
     this.cargando = true;
     try {
       await this.auth.registrarCliente({
@@ -35,9 +51,11 @@ export class RegistroComponent implements OnDestroy {
         licencia: { numeroLicencia: v.numeroLicencia.trim(), categoriaLicencia: v.categoriaLicencia.trim(), fechaExpedicion: v.expedicion, fechaVencimiento: v.vencimiento }
       });
     } catch (e) {
-      console.error(e);
       this.cargando = false;
-      this.avisar(e instanceof Error ? e.message : 'No fue posible registrar la cuenta.');
+      const mensaje = e instanceof Error && e.message ? e.message : 'No fue posible crear la cuenta. Int\u00e9ntalo de nuevo.';
+      this.error = mensaje;
+      this.marcarCampoRepetido(mensaje);
+      this.refrescar();
       return;
     }
     // La cuenta ya existe y la sesi\u00f3n qued\u00f3 iniciada: se avisa y se lleva al men\u00fa principal.
@@ -49,10 +67,14 @@ export class RegistroComponent implements OnDestroy {
 
   ngOnDestroy(): void { this.destruido = true; }
 
-  /** Muestra el mensaje en pantalla y en un aviso del navegador, para que nunca pase inadvertido. */
-  private avisar(mensaje: string): void {
-    this.error = mensaje;
+  /** Si el servidor rechaza el correo o el documento (por ejemplo, ya registrado), se se\u00f1ala tambi\u00e9n junto al campo. */
+  private marcarCampoRepetido(mensaje: string): void {
+    if (/correo/i.test(mensaje)) { this.form.get('correo')?.setErrors({ mensaje }); }
+    if (/documento/i.test(mensaje)) { this.form.get('documento')?.setErrors({ mensaje }); }
+    enfocarPrimerInvalido();
+  }
+
+  private refrescar(): void {
     if (!this.destruido) { this.cdr.detectChanges(); }
-    window.alert(mensaje);
   }
 }

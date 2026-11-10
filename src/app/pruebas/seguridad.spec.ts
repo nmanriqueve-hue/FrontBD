@@ -138,7 +138,7 @@ describe('RolGuard', () => {
 describe('utilidades', () => {
   it('mensajeError traduce los errores del backend y de red', () => {
     expect(mensajeError(new HttpErrorResponse({ status: 0 }))).toContain('conexión');
-    expect(mensajeError(new HttpErrorResponse({ status: 400, error: { mensaje: 'Datos de entrada inválidos', detalles: { kilometraje: 'no debe ser nulo' } } }))).toBe('Datos de entrada inválidos · kilometraje: no debe ser nulo');
+    expect(mensajeError(new HttpErrorResponse({ status: 400, error: { mensaje: 'Datos de entrada inválidos', detalles: { kilometraje: 'no debe ser nulo' } } }))).toBe('Revisa los datos ingresados \u00b7 Kilometraje: no debe ser nulo');
     expect(mensajeError(new HttpErrorResponse({ status: 500, error: null }), 'Falló')).toBe('Falló');
     expect(mensajeError(new Error('texto'))).toBe('texto');
     expect(mensajeError('raro', 'por defecto')).toBe('por defecto');

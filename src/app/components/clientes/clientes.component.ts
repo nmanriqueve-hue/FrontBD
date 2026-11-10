@@ -5,7 +5,7 @@ import { ApiService, mensajeError } from '../../core/api.service';
 import { ClienteResponse, LicenciaResponse } from '../../core/api-models';
 import { AuthService } from '../../core/auth.service';
 import { CLAVE_POLITICA, fechaIso } from '../../core/formato';
-import { validarControl } from '../../core/validadores';
+import { validarControl, resumenInvalidos, enfocarPrimerInvalido } from '../../core/validadores';
 
 @Component({ selector: 'app-clientes', standalone: false, templateUrl: './clientes.component.html', styleUrl: './clientes.component.css' })
 export class ClientesComponent implements OnInit {
@@ -24,10 +24,10 @@ export class ClientesComponent implements OnInit {
 
   constructor(private api: ApiService, fb: FormBuilder, public auth: AuthService) {
     this.form = fb.group({
-      documento: ['', [Validators.required, Validators.pattern('^[0-9A-Za-z-]{4,25}$')]],
-      primerNombre: ['', [Validators.required, Validators.maxLength(70)]], segundoNombre: ['', Validators.maxLength(70)],
-      primerApellido: ['', [Validators.required, Validators.maxLength(70)]], segundoApellido: ['', Validators.maxLength(70)],
-      correo: ['', [Validators.required, Validators.email]], telefono: ['', [Validators.required, Validators.pattern('^[0-9+() -]{7,20}$')]],
+      documento: ['', [Validators.required, Validators.pattern('^[0-9A-Za-z-]{4,20}$')]],
+      primerNombre: ['', [Validators.required, Validators.maxLength(50)]], segundoNombre: ['', Validators.maxLength(50)],
+      primerApellido: ['', [Validators.required, Validators.maxLength(50)]], segundoApellido: ['', Validators.maxLength(50)],
+      correo: ['', [Validators.required, Validators.email, Validators.maxLength(100)]], telefono: ['', [Validators.required, Validators.pattern('^[0-9+() -]{7,20}$')]],
       clave: [''], numeroLicencia: [''], categoriaLicencia: [''], expedicion: [''], vencimiento: ['']
     });
   }
@@ -74,7 +74,7 @@ export class ClientesComponent implements OnInit {
   async guardar(): Promise<void> {
     this.form.markAllAsTouched(); this.error = ''; this.exito = '';
     if (this.guardando) { return; }
-    if (this.form.invalid) { this.error = 'Verifica los campos obligatorios y el formato de los datos.'; return; }
+    if (this.form.invalid) { this.error = resumenInvalidos(this.form); enfocarPrimerInvalido(); return; }
     const v = this.form.getRawValue();
     if (this.pideLicencia && (v.expedicion > v.vencimiento || v.expedicion > fechaIso() || v.vencimiento < fechaIso())) { this.error = 'La licencia debe estar expedida y vigente. Verifica las fechas.'; return; }
     const licencia = { numeroLicencia: v.numeroLicencia.trim(), categoriaLicencia: v.categoriaLicencia.trim(), fechaExpedicion: v.expedicion, fechaVencimiento: v.vencimiento };

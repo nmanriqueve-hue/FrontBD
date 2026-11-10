@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService, mensajeError } from '../../core/api.service';
 import { CategoriaResponse, EstadoVehiculo, SedeResponse, VehiculoResponse } from '../../core/api-models';
 import { AuthService } from '../../core/auth.service';
-import { validarControl } from '../../core/validadores';
+import { validarControl, resumenInvalidos, enfocarPrimerInvalido } from '../../core/validadores';
 
 @Component({ selector: 'app-inventario', standalone: false, templateUrl: './inventario.component.html', styleUrl: './inventario.component.css' })
 export class InventarioComponent implements OnInit {
@@ -56,7 +56,7 @@ export class InventarioComponent implements OnInit {
   async guardar(): Promise<void> {
     this.form.markAllAsTouched(); this.error = ''; this.exito = '';
     if (this.guardando) { return; }
-    if (this.form.invalid) { this.error = 'Completa los datos del vehículo con valores válidos.'; return; }
+    if (this.form.invalid) { this.error = resumenInvalidos(this.form); enfocarPrimerInvalido(); return; }
     const v = this.form.getRawValue();
     this.guardando = true;
     try {

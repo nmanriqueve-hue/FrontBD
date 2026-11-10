@@ -1,6 +1,6 @@
 # RutaCar — Sistema de gestión de alquiler de vehículos
 
-Proyecto académico de Bases de Datos 2 de la Universidad El Bosque.
+Aplicacion web para la gestion del alquiler de vehiculos en Colombia.
 
 ## Inicio
 
