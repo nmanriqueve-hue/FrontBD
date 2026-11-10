@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_URL } from './api-config';
 import {
-  ApiError, CambiarClaveRequest, CategoriaRequest, CategoriaResponse, ClaveTemporalResponse,
+  ApiError, CambiarClaveRequest, ClienteRequest, CategoriaRequest, CategoriaResponse, ClaveTemporalResponse,
   ClienteResponse, ClienteUpdateRequest, EstadoCliente, CostoMantenimientoResponse, CotizacionResponse, EmpleadoRequest,
   EmpleadoResponse, EmpleadosSedeResponse, EstadoCatalogo, EstadoReserva, EstadoVehiculo, FlotaEstadoResponse,
   GastoTecnicoResponse, HistorialVehiculoResponse, IngresoSedeResponse, InspeccionRequest, InspeccionResponse,
@@ -81,6 +81,7 @@ export class ApiService {
   // ---------- Clientes y licencias ----------
   clientes(f: { page?: number; size?: number } = {}): Observable<Pagina<ClienteResponse>> { return this.http.get<Pagina<ClienteResponse>>(`${API_URL}/clientes`, { params: parametros(f) }); }
   cliente(id: number): Observable<ClienteResponse> { return this.http.get<ClienteResponse>(`${API_URL}/clientes/${id}`); }
+  crearCliente(datos: ClienteRequest): Observable<ClienteResponse> { return this.http.post<ClienteResponse>(`${API_URL}/clientes`, datos); }
   clientePorDocumento(documento: string): Observable<ClienteResponse> { return this.http.get<ClienteResponse>(`${API_URL}/clientes/documento/${encodeURIComponent(documento)}`); }
   actualizarCliente(id: number, datos: ClienteUpdateRequest): Observable<ClienteResponse> { return this.http.put<ClienteResponse>(`${API_URL}/clientes/${id}`, datos); }
   estadoCliente(id: number, estado: EstadoCliente): Observable<ClienteResponse> { return this.http.patch<ClienteResponse>(`${API_URL}/clientes/${id}/estado`, { estado }); }

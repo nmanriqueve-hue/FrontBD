@@ -24,7 +24,7 @@ const TOKEN_KEY = 'rutacar.token';
 const PERFIL_KEY = 'rutacar.perfil';
 const EXPIRA_KEY = 'rutacar.expira';
 /** Claves de versiones anteriores, cuando el acceso y los datos vivían en el navegador. */
-const CLAVES_OBSOLETAS = ['alquiler-bd2-cuentas-locales-v3', 'alquiler-bd2-sesion-local-v3', 'bd2-rutacar-demo-v3'];
+const CLAVES_OBSOLETAS = ['alquiler-bd2-cuentas-locales-v3', 'alquiler-bd2-sesion-local-v3', 'bd2-rutacar-demo-v3', 'rutacar-datos-locales-v4'];
 
 /**
  * Autenticación contra el backend con JWT. El token y el perfil se guardan en sessionStorage

@@ -2,6 +2,7 @@ import { ChangeDetectorRef, Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { fechaIso } from '../../core/formato';
 import { validarControl } from '../../core/validadores';
 
 @Component({ selector: 'app-registro', standalone: false, templateUrl: './registro.component.html', styleUrl: './registro.component.css' })
@@ -25,7 +26,7 @@ export class RegistroComponent implements OnDestroy {
     }
     const v = this.form.getRawValue();
     if (v.clave !== v.confirmar) { this.avisar('Las contrase\u00f1as no coinciden.'); return; }
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = fechaIso();
     if (v.expedicion > hoy || v.vencimiento < hoy || v.expedicion >= v.vencimiento) { this.avisar('La licencia debe estar expedida y vigente. Verifica ambas fechas.'); return; }
     this.cargando = true;
     try {
