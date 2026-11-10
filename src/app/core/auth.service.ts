@@ -72,9 +72,15 @@ export class AuthService {
     catch (e) { throw new Error(mensajeError(e, 'No se pudo actualizar la contraseña.')); }
   }
 
-  /** Recuperación sin sesión: correo y documento identifican la cuenta y se define la clave nueva. */
-  async recuperarClave(correo: string, numeroDocumento: string, claveNueva: string): Promise<void> {
-    try { await firstValueFrom(this.api.recuperarClave({ correo: correo.trim().toLowerCase(), numeroDocumento: numeroDocumento.trim(), claveNueva })); }
+  /** Pide un enlace de recuperación al correo (siempre responde igual, exista o no la cuenta). */
+  async olvideClave(correo: string): Promise<void> {
+    try { await firstValueFrom(this.api.olvideClave({ correo: correo.trim().toLowerCase() })); }
+    catch (e) { throw new Error(mensajeError(e, 'No se pudo enviar el enlace. Inténtalo de nuevo.')); }
+  }
+
+  /** Define la contraseña nueva con el token que llegó en el enlace del correo. */
+  async restablecerClave(token: string, claveNueva: string): Promise<void> {
+    try { await firstValueFrom(this.api.restablecerClave({ token, claveNueva })); }
     catch (e) { throw new Error(mensajeError(e, 'No se pudo restablecer la contraseña.')); }
   }
 

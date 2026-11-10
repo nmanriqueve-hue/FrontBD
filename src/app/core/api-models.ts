@@ -76,7 +76,8 @@ export interface LicenciaRequest {
 
 export interface RegistroRequest { cliente: ClienteRequest; licencia?: LicenciaRequest; }
 export interface CambiarClaveRequest { claveActual: string; claveNueva: string; }
-export interface RecuperarClaveRequest { correo: string; numeroDocumento: string; claveNueva: string; }
+export interface OlvideClaveRequest { correo: string; }
+export interface RestablecerClaveRequest { token: string; claveNueva: string; }
 
 // ---------- Clientes y licencias ----------
 export interface ClienteResponse {
