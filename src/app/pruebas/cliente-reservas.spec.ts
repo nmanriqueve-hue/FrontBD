@@ -88,7 +88,10 @@ describe('Catalogo, reservas y pagos contra el backend', () => {
     const lista = await responder(http, 'GET', '/reservas', PAGINA([])); expect(lista.request.params.get('idCliente')).toBe('9');
     await responder(http, 'GET', '/clientes/9/penalizaciones', []);
     c.nueva(); expect(c.form.getRawValue().clienteId).toBe(9); expect(c.form.get('clienteId')?.disabled).toBe(true); expect(c.puedeOperar).toBe(false);
-    http.expectNone(r => r.url.endsWith('/clientes')); http.verify();
+    // El cliente ve su saldo, pero no puede registrar (ni aprobar) su propio pago.
+    c.detalle = RESERVA('PENDIENTE', 204000) as never;
+    expect(c.tieneSaldoPorPagar).toBe(true); expect(c.puedePagar).toBe(false);
+    http.expectNone(r => r.url.endsWith('/clientes')); http.expectNone(r => r.url.endsWith('/pagos')); http.verify();
   });
 
   it('pagos: lista las pendientes y registra un pago aprobado', async () => {
