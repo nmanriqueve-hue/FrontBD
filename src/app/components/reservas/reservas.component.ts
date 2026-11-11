@@ -46,7 +46,10 @@ export class ReservasComponent implements OnInit {
 
   get puedeOperar(): boolean { return this.auth.tieneRol(['administrador', 'asesor']); }
   get vehiculoElegido(): VehiculoResponse | undefined { const id = this.form.get('vehiculoId')?.value; return this.vehiculos.find(v => v.idVehiculo === id); }
-  get puedePagar(): boolean { const d = this.detalle; return !!d && d.saldoPendiente > 0 && (d.estadoReserva === 'PENDIENTE' || d.estadoReserva === 'CONFIRMADA'); }
+  /** Hay saldo por pagar en una reserva que aún admite pagos. */
+  get tieneSaldoPorPagar(): boolean { const d = this.detalle; return !!d && d.saldoPendiente > 0 && (d.estadoReserva === 'PENDIENTE' || d.estadoReserva === 'CONFIRMADA'); }
+  /** Solo el personal registra pagos: el cliente no puede aprobar su propio pago (el backend también lo exige). */
+  get puedePagar(): boolean { return this.puedeOperar && this.tieneSaldoPorPagar; }
   get puedeCancelar(): boolean { const e = this.detalle?.estadoReserva; return e === 'PENDIENTE' || e === 'CONFIRMADA'; }
   get puedeIniciar(): boolean { return this.puedeOperar && this.detalle?.estadoReserva === 'CONFIRMADA'; }
   get puedeFinalizar(): boolean { return this.puedeOperar && this.detalle?.estadoReserva === 'EN_CURSO'; }

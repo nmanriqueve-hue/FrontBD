@@ -94,6 +94,7 @@
             </div>
             <div class="form-actions"><button class="btn btn-primary" type="button" [disabled]="guardando" (click)="pagar()">{{guardando?'Procesando...':'Pagar'}}</button></div>
         </ng-container>
+        <p class="small-note" *ngIf="auth.esCliente && tieneSaldoPorPagar">El pago se registra con un asesor en la sede. Tu reserva quedará confirmada cuando el pago sea aprobado.</p>
         <div class="divider" *ngIf="puedeIniciar || puedeFinalizar || puedeCancelar"></div>
         <div class="form-grid" *ngIf="puedeIniciar && auth.esAdmin"><div class="field"><label for="asesor-entrega">Asesor que entrega *</label><select id="asesor-entrega" [(ngModel)]="asesorElegido" name="asesorEntrega"><option [ngValue]="''">Seleccionar asesor</option><option *ngFor="let a of asesores" [ngValue]="a.idEmpleado">{{a.primerNombre}} {{a.primerApellido}}</option></select></div></div>
         <p class="small-note" *ngIf="puedeIniciar">Para iniciar la entrega debe existir la inspección de ENTREGA del vehículo (módulo Inspecciones).</p>
