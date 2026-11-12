@@ -1,129 +1,99 @@
-# RutaCar — Backend y base de datos
+# RutaCar — Frontend (Angular)
 
-API REST y scripts de base de datos del sistema de gestión de alquiler de vehículos **RutaCar** (Bases de Datos 2, Universidad El Bosque).
+Interfaz web del sistema de gestión de alquiler de vehículos **RutaCar** (Bases de Datos 2, Universidad El Bosque).
+Consume la API REST del backend Spring Boot, que a su vez trabaja con PostgreSQL (datos relacionales) y MongoDB (inspecciones y fotos).
 
 | Repositorio | Contenido |
 |---|---|
-| **alquiler-vehiculos-bd2** (este) | Spring Boot + scripts SQL (`database/`) |
-| [FrontBD](https://github.com/nmanriqueve-hue/FrontBD) | Frontend Angular 20 |
+| **FrontBD** (este) | Aplicación Angular 20 |
+| [alquiler-vehiculos-bd2](https://github.com/Acoss1x/alquiler-vehiculos-bd2) | Backend Spring Boot + scripts SQL (`database/`) |
 
-## Tecnologías
+## Arquitectura
 
-- Java 21, Spring Boot (Web MVC, Data JPA, Security, Validation).
-- **PostgreSQL**: modelo relacional de 15 tablas, con funciones, procedimientos, triggers, restricciones de exclusión para cruces de reservas y roles de base de datos.
-- **MongoDB**: inspecciones de vehículos (documentos) y fotografías (GridFS).
-- Autenticación con JWT (HS256) y contraseñas con BCrypt.
-- Empaquetado `war` (Maven Wrapper incluido).
+```
+Navegador (Angular 20)  ──HTTP/JSON + JWT──▶  Spring Boot (Java 21)  ──▶  PostgreSQL  (reservas, pagos, flota…)
+                                                                      └─▶  MongoDB     (inspecciones y fotos, GridFS)
+```
 
-## 1. Base de datos PostgreSQL
+## Requisitos
 
-Requiere PostgreSQL con las extensiones `pgcrypto` y `btree_gist`. La base debe existir y estar **vacía**:
+- Node.js 20.19+ o 22.12+ y npm.
+- Backend en ejecución (por defecto en `http://localhost:8080`). Ver el README del backend.
+
+## Puesta en marcha
 
 ```bash
-createdb alquiler_vehiculos
-cd database
-PGHOST=localhost PGUSER=<usuario> PGDATABASE=alquiler_vehiculos ./ejecutar_todo.sh
+npm install
+npm start          # ng serve --host 0.0.0.0  →  http://localhost:4200
 ```
 
-El script ejecuta, en este orden (importa), y se detiene ante cualquier error:
+La URL de la API está en `src/app/core/api-config.ts` (`API_URL`, por defecto `http://localhost:8080/api`).
+Si el backend corre en otra máquina o en la VM, cambia ese valor y agrega el origen del front a `app.cors.allowed-origins` del backend.
 
-| Orden | Archivo | Contenido |
-|---|---|---|
-| 1 | `01_creacion.sql` | Tablas, claves, restricciones |
-| 2 | `02_funciones_procedimientos.sql` | Lógica de reservas, pagos, entregas y devoluciones |
-| 3 | `03_triggers.sql` | Auditoría, límites de pago, especialización de empleados |
-| 4 | `07_cambios_fase2.sql` | Credenciales, estado `BLOQUEADO`, `BAJA`/`VENDIDO`, penalizaciones |
-| 5 | `04_datos_prueba.sql` | Sedes, categorías, vehículos y empleados de prueba |
-| 6 | `05_seguridad.sql` | Roles `rol_administrador`, `rol_asesor`, `rol_tecnico`, etc. |
-| 7 | `09_cambios_backend.sql` | Ajustes para el backend (procedimiento de cambio de clave, etc.) |
-| 8–9 | `06_pruebas.sql`, `08_pruebas_fase2.sql` | Pruebas de reglas de negocio |
+## Scripts
 
-> `04` y `05` dependen de lo que agrega `07`, por eso el orden no es numérico.
-
-## 2. MongoDB
-
-El backend se conecta con `spring.data.mongodb.uri` (ver sección 3; sin ese valor usa `localhost:27017`). Crea las colecciones e índices al arrancar (`auto-index-creation=true`).
-
-## 3. Configuración del backend
-
-`src/main/resources/application.properties` apunta a PostgreSQL en `192.168.56.10:5432` (la VM) con el usuario `admindb`.
-Los secretos **no están en Git**: créalos en `src/main/resources/application-local.properties` (ignorado por Git):
-
-```properties
-# Ajusta el host si no usas la VM
-spring.datasource.url=jdbc:postgresql://localhost:5432/alquiler_vehiculos
-spring.datasource.username=<usuario>
-spring.datasource.password=<contraseña>
-
-spring.data.mongodb.uri=mongodb://localhost:27017/<nombre_base>
-
-# Mínimo 32 caracteres (también puede venir de la variable APP_JWT_SECRET)
-app.jwt.secret=<cadena-aleatoria-de-32-o-más-caracteres>
-app.jwt.expiracion-minutos=120
-
-# Orígenes permitidos para el frontend (por defecto 3000, 5173 y 4200 en localhost)
-app.cors.allowed-origins=http://localhost:4200
-```
-
-Sin `app.jwt.secret` la aplicación no arranca.
-
-## 4. Ejecutar
-
-```bash
-./mvnw spring-boot:run        # API en http://localhost:8080
-./mvnw test                   # pruebas
-./mvnw -DskipTests package    # genera el .war en target/
-```
-
-Luego levanta el frontend (repositorio FrontBD) y entra con un usuario de prueba.
+| Comando | Acción |
+|---|---|
+| `npm start` | Servidor de desarrollo |
+| `npm run build` | Compilación de producción (`dist/`) |
+| `npm test` | Pruebas unitarias (una sola ejecución) |
+| `npm run typecheck` | Verificación de tipos |
+| `npm run verificar` | Typecheck + build de producción + pruebas |
 
 ## Usuarios de prueba
 
-Cargados por `04_datos_prueba.sql`. Clave: `Clave123*` (solo desarrollo; cámbiala en cualquier otro entorno).
+Los carga el script `database/04_datos_prueba.sql` del backend. Clave de todos: `Clave123*` (solo para desarrollo).
 
 | Rol | Correo |
 |---|---|
 | Administrador | `marta.rios@alquiler.com` |
 | Asesor | `camilo.pardo@alquiler.com`, `valentina.mora@alquiler.com` |
 | Técnico | `julian.cortes@alquiler.com`, `sofia.lara@alquiler.com` |
+| Cliente | Se crea desde **Crear cuenta** (`/registro`) |
 
-Los clientes se registran con `POST /api/auth/registro`.
+## Módulos y acceso por rol
 
-## API (`/api`)
+La sesión usa un JWT que el backend emite en `/api/auth/login`; se guarda en `sessionStorage`. Las rutas se protegen con `RolGuard`, pero **la autorización real la aplica el backend**.
 
-| Recurso | Descripción |
-|---|---|
-| `/auth` | `login`, `registro`, `me`, `cambiar-clave`, `recuperar-clave` |
-| `/clientes`, `/clientes/{id}/licencia` | Clientes y licencias |
-| `/empleados` | Empleados por rol y sede |
-| `/vehiculos`, `/categorias`, `/sedes`, `/seguros` | Flota y catálogos |
-| `/reservas` | Cotización, pre-reserva, confirmación, pagos, entrega, devolución y penalizaciones |
-| `/vehiculos/{id}/inspecciones`, `/inspecciones` | Inspecciones y fotos (MongoDB) |
-| `/reportes` | Ingresos por sede, flota por estado, seguros más contratados, empleados por sede, historial por vehículo |
+| Ruta | Descripción | Roles |
+|---|---|---|
+| `/`, `/catalogo` | Portada, búsqueda por sedes y fechas, catálogo, cotización | Público |
+| `/acceso`, `/registro`, `/recuperar` | Inicio de sesión, registro y recuperación de clave | Público |
+| `/panel`, `/perfil` | Panel y datos de la cuenta | Autenticados |
+| `/reservas` | Pre-reservas, confirmación y cancelación | Cliente, asesor, administrador |
+| `/pagos` | Registro de pagos (aprobado/rechazado) | Administrador, asesor |
+| `/clientes` | Clientes y licencias | Administrador, asesor |
+| `/inspecciones` | Inspecciones de entrega/devolución y fotos | Administrador, asesor, técnico |
+| `/flota`, `/catalogos` | Vehículos, categorías, sedes y seguros | Administrador |
+| `/empleados` | Gestión de empleados | Administrador |
+| `/reportes` | Reportes (ingresos por sede, flota por estado, seguros, empleados por sede) | Administrador, técnico |
 
-Públicos (sin token): login, registro, recuperación de clave, catálogos, `vehiculos/disponibles` y `reservas/cotizacion`. El resto exige JWT y rol.
+Los roles por ruta están definidos en `src/app/app-routing.module.ts`.
 
-## Reglas de negocio principales
+## Reglas de negocio visibles en la interfaz
 
-Se aplican en la base de datos (funciones, procedimientos, triggers y restricciones), no solo en la API:
+La validación definitiva vive en PostgreSQL (funciones, procedimientos y triggers) y en el backend; el front muestra sus mensajes de error.
 
-- Sin cruces de reservas para un mismo vehículo ni para un mismo cliente.
-- La reserva se confirma solo con un pago inicial aprobado; un pago rechazado cancela la pre-reserva.
-- Pagos aprobados ≤ costo pactado.
-- Cliente `BLOQUEADO` no puede reservar; la entrega la registra un asesor activo.
-- Devolución posible en otra sede; penalizaciones ligadas a la reserva y a la inspección.
-- Auditoría de cambios de estado de la reserva.
-
-> Consistencia entre bases: PostgreSQL y MongoDB no comparten transacción. El registro de inspecciones aplica una compensación manual si una de las dos escrituras falla.
+- Una reserva solo se confirma cuando existe un pago inicial aprobado; un pago rechazado cancela la pre-reserva.
+- No se aceptan reservas que se crucen para el mismo vehículo, ni para un mismo cliente.
+- Los pagos aprobados no pueden superar el costo pactado.
+- Un cliente bloqueado no puede reservar.
+- Las devoluciones pueden hacerse en una sede distinta a la de entrega.
 
 ## Estructura
 
 ```
-database/                 scripts SQL y ejecutar_todo.sh
-src/main/java/co/edu/unbosque/alquiler/
-  config/  controller/  dto/  document/  entity/  repository/  security/  service/
+src/app/
+  core/        api.service.ts, auth.service.ts, rol.guard.ts, api-config.ts, utilidades
+  pruebas/     pruebas unitarias (auth, guard, formato)
+  …            un componente por módulo (standalone: false, archivos independientes)
 ```
 
 ## Integrantes
 
 Felipe Acosta · Santiago Muñoz · Nataly Manrique
+
+## Notas
+
+- Las fotografías de la portada y el catálogo son ilustrativas y requieren conexión a internet.
+- Las cotizaciones no incluyen impuestos: el documento de requerimientos (RF-07) los exige pero no define tasa ni régimen.
