@@ -13,6 +13,7 @@ import { ReportesComponent } from './components/reportes/reportes.component';
 import { AccesoComponent } from './components/acceso/acceso.component';
 import { RegistroComponent } from './components/registro/registro.component';
 import { RecuperacionComponent } from './components/recuperacion/recuperacion.component';
+import { RestablecerComponent } from './components/restablecer/restablecer.component';
 import { PerfilComponent } from './components/perfil/perfil.component';
 import { SinPermisoComponent } from './components/sin-permiso/sin-permiso.component';
 import { RolGuard } from './core/rol.guard';
@@ -23,6 +24,7 @@ const rutas: Routes = [
   { path: 'acceso', component: AccesoComponent, title: 'Iniciar sesión | RutaCar' },
   { path: 'registro', component: RegistroComponent, title: 'Crear cuenta | RutaCar' },
   { path: 'recuperar', component: RecuperacionComponent, title: 'Recuperar acceso | RutaCar' },
+  { path: 'restablecer', component: RestablecerComponent, title: 'Nueva contraseña | RutaCar' },
   { path: 'sin-permiso', component: SinPermisoComponent, title: 'Acceso restringido | RutaCar' },
   { path: 'panel', component: InicioComponent, canActivate: [RolGuard], title: 'Mi panel | RutaCar' },
   { path: 'perfil', component: PerfilComponent, canActivate: [RolGuard], title: 'Mi cuenta | RutaCar' },
